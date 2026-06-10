@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
   MdSearch, MdFilterList, MdClose, MdAdd,
   MdPictureAsPdf, MdTableChart, MdDescription,
-  MdInsertDriveFile, MdDownload, MdDelete, MdVisibility,
+  MdInsertDriveFile, MdDownload, MdDelete, MdVisibility, MdWarning,
 } from "react-icons/md";
 import { getDocuments, deleteDocument } from "../api/documents";
 import { useAuthStore } from "../store/authStore";
@@ -21,14 +21,50 @@ const typeBadge = {
   Word:  "bg-sky-50 text-sky-600 border border-sky-100",
 };
 
+// ── Modal confirmation suppression ────────────────────────────────────────
+function DeleteModal({ docName, onConfirm, onClose }) {
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm">
+        <h3 className="text-base font-bold text-slate-800 mb-2">
+          Supprimer ce document ?
+        </h3>
+        <p className="text-sm text-slate-500 mb-1">
+          Vous êtes sur le point de supprimer :
+        </p>
+        <p className="text-sm font-medium text-slate-700 mb-5 truncate">
+           <MdDescription className="inline mr-1" /> {docName}
+        </p>
+        <p className="text-xs text-rose-400 mb-5">
+          <MdWarning className="inline mr-1" /> Cette action est irréversible.
+        </p>
+        <div className="flex gap-3">
+          <button onClick={onClose}
+            className="flex-1 border border-slate-200 text-slate-600 text-sm py-2.5
+                       rounded-lg hover:bg-slate-50 transition font-medium">
+            Annuler
+          </button>
+          <button onClick={onConfirm}
+            className="flex-1 bg-rose-500 text-white text-sm py-2.5 rounded-lg
+                       hover:bg-rose-600 transition font-medium">
+            Supprimer
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ArchivesPage() {
   const [documents, setDocuments]   = useState([]);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState(null);
   const [search, setSearch]         = useState("");
   const [filterType, setFilterType] = useState("Tous");
+  const [deleteTarget, setDeleteTarget] = useState(null); // { id, name }
   const navigate                    = useNavigate();
-  const { success } = useToastStore();
+  const { user }                    = useAuthStore();
+  const { success, error: toastError } = useToastStore();
 
   const fetchDocuments = useCallback(async () => {
     setLoading(true);
@@ -48,23 +84,25 @@ export default function ArchivesPage() {
 
   useEffect(() => { fetchDocuments(); }, [fetchDocuments]);
 
- const handleDelete = async (id) => {
-  if (!window.confirm("Supprimer ce document ?")) return;
-  try {
-    await deleteDocument(id);
-    setDocuments((prev) => prev.filter((d) => d.id !== id));
-    success("Document supprimé avec succès.");
-  } catch {
-    error("Erreur lors de la suppression.");
-  }
-};
+  // ── Suppression avec modal ────────────────────────────────────────────
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await deleteDocument(deleteTarget.id);
+      setDocuments((prev) => prev.filter((d) => d.id !== deleteTarget.id));
+      success("Document supprimé avec succès.");
+    } catch {
+      toastError("Erreur lors de la suppression.");
+    } finally {
+      setDeleteTarget(null);
+    }
+  };
 
   const types = ["Tous", "PDF", "Excel", "Word"];
 
-    const { user } = useAuthStore();
-
   return (
     <div>
+
       {/* ── En-tête ── */}
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -73,13 +111,15 @@ export default function ArchivesPage() {
             {documents.length} document{documents.length > 1 ? "s" : ""}
           </p>
         </div>
-        <button
-          onClick={() => navigate("/upload")}
-          className="flex items-center gap-2 bg-teal-700 hover:bg-teal-800
-                     text-white text-sm px-4 py-2 rounded-lg transition font-medium"
-        >
-          <MdAdd className="text-lg" /> Nouveau document
-        </button>
+        {["admin", "editeur"].includes(user?.role) && (
+          <button
+            onClick={() => navigate("/upload")}
+            className="flex items-center gap-2 bg-teal-700 hover:bg-teal-800
+                       text-white text-sm px-4 py-2 rounded-lg transition font-medium"
+          >
+            <MdAdd className="text-lg" /> Nouveau document
+          </button>
+        )}
       </div>
 
       {/* ── Filtres ── */}
@@ -149,9 +189,7 @@ export default function ArchivesPage() {
 
             {!loading && error && (
               <tr>
-                <td colSpan={6} className="text-center py-16 text-rose-400">
-                  {error}
-                </td>
+                <td colSpan={6} className="text-center py-16 text-rose-400">{error}</td>
               </tr>
             )}
 
@@ -214,7 +252,6 @@ export default function ArchivesPage() {
                   </div>
                 </td>
 
-                {/* ✅ Actions corrigées */}
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
                     <button
@@ -235,15 +272,16 @@ export default function ArchivesPage() {
                         <MdDownload className="text-lg" />
                       </a>
                     )}
-                   {user?.role === "admin" && (
-  <button
-    onClick={() => handleDelete(doc.id)}
-    className="text-slate-400 hover:text-rose-500 transition"
-    title="Supprimer"
-  >
-    <MdDelete className="text-lg" />
-  </button>
-)} 
+                    {/*  Modal suppression pour admin */}
+                    {user?.role === "admin" && (
+                      <button
+                        onClick={() => setDeleteTarget({ id: doc.id, name: doc.name })}
+                        className="text-slate-400 hover:text-rose-500 transition"
+                        title="Supprimer"
+                      >
+                        <MdDelete className="text-lg" />
+                      </button>
+                    )}
                   </div>
                 </td>
 
@@ -252,6 +290,16 @@ export default function ArchivesPage() {
           </tbody>
         </table>
       </div>
+
+      {/* ── Modal suppression ── */}
+      {deleteTarget && (
+        <DeleteModal
+          docName={deleteTarget.name}
+          onConfirm={handleDelete}
+          onClose={() => setDeleteTarget(null)}
+        />
+      )}
+
     </div>
   );
 }

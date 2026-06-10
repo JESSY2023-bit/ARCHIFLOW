@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
-  MdArrowBack, MdDownload, MdEdit, MdDelete,
+  MdArrowBack, MdDownload, MdDelete,
   MdPictureAsPdf, MdTableChart, MdDescription,
   MdHistory, MdInfo, MdPerson, MdCalendarToday,
   MdLabel, MdFolder, MdCheckCircle, MdClose,
@@ -21,11 +21,10 @@ const typeBadge = {
   PDF:   "bg-rose-50 text-rose-600 border border-rose-100",
   Excel: "bg-emerald-50 text-emerald-700 border border-emerald-100",
   Word:  "bg-sky-50 text-sky-600 border border-sky-100",
-};              
+};
 
+// ── Modal suppression ──────────────────────────────────────────────────────
 function DeleteModal({ onConfirm, onClose }) {
-  const { user } = useAuthStore();
-  const [ setShowDelete] = useState(false);
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
       <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm">
@@ -41,25 +40,23 @@ function DeleteModal({ onConfirm, onClose }) {
                        rounded-lg hover:bg-slate-50 transition font-medium">
             Annuler
           </button>
-          {user?.role === "admin" && (
-  <button
-    onClick={() => setShowDelete(true)}
-    className="flex items-center gap-1.5 border border-rose-100 text-rose-500
-               text-sm px-3 py-2 rounded-lg hover:bg-rose-50 transition"
-  >
-    <MdDelete className="text-lg" />
-  </button>
-)}
+          <button onClick={onConfirm}
+            className="flex-1 bg-rose-500 text-white text-sm py-2.5 rounded-lg
+                       hover:bg-rose-600 transition font-medium">
+            Supprimer
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
+// ── Modal nouvelle version ─────────────────────────────────────────────────
 function NewVersionModal({ docId, onClose, onSuccess }) {
-  const [file, setFile]   = useState(null);
-  const [note, setNote]   = useState("");
+  const [file, setFile]       = useState(null);
+  const [note, setNote]       = useState("");
   const [loading, setLoading] = useState(false);
+  const { error } = useToastStore();
 
   const handleSubmit = async () => {
     if (!file) return;
@@ -72,7 +69,7 @@ function NewVersionModal({ docId, onClose, onSuccess }) {
       onSuccess();
       onClose();
     } catch {
-      alert("Erreur lors de l'upload.");
+      error("Erreur lors de l'upload.");
     } finally {
       setLoading(false);
     }
@@ -88,7 +85,6 @@ function NewVersionModal({ docId, onClose, onSuccess }) {
             <MdClose className="text-xl" />
           </button>
         </div>
-
         <div className="space-y-4">
           <div>
             <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
@@ -116,7 +112,6 @@ function NewVersionModal({ docId, onClose, onSuccess }) {
             />
           </div>
         </div>
-
         <div className="flex gap-3 mt-6">
           <button onClick={onClose}
             className="flex-1 border border-slate-200 text-slate-600 text-sm py-2.5
@@ -139,26 +134,29 @@ function NewVersionModal({ docId, onClose, onSuccess }) {
   );
 }
 
+// ── Page principale ────────────────────────────────────────────────────────
 export default function DocumentDetailPage() {
-  const { id }     = useParams();
-  const navigate   = useNavigate();
-  const [doc, setDoc]               = useState(null);
-  const [loading, setLoading]       = useState(true);
-  const [error, setError]           = useState(null);
-  const [tab, setTab]               = useState("info");
-  const [showDelete, setShowDelete] = useState(false);
-  const [showVersion, setShowVersion] = useState(false);
+  const { id }       = useParams();
+  const navigate     = useNavigate();
+  const { user }     = useAuthStore();
+  const { success, error } = useToastStore();
+
+  const [doc, setDoc]                   = useState(null);
+  const [loading, setLoading]           = useState(true);
+  const [fetchError, setFetchError]     = useState(null);
+  const [tab, setTab]                   = useState("info");
+  const [showDelete, setShowDelete]     = useState(false);  // ✅ bien déclaré ici
+  const [showVersion, setShowVersion]   = useState(false);
   const [activeVersion, setActiveVersion] = useState(0);
-const { success } = useToastStore();
 
   const fetchDoc = async () => {
     setLoading(true);
-    setError(null);
+    setFetchError(null);
     try {
       const res = await getDocument(id);
       setDoc(res.data);
     } catch {
-      setError("Document introuvable.");
+      setFetchError("Document introuvable.");
     } finally {
       setLoading(false);
     }
@@ -166,25 +164,26 @@ const { success } = useToastStore();
 
   useEffect(() => { fetchDoc(); }, [id]);
 
- const handleDelete = async () => {
-  try {
-    await deleteDocument(id);
-    success("Document supprimé.");
-    navigate("/archives");
-  } catch {
-    error("Erreur lors de la suppression.");
-  }
-};
+  const handleDelete = async () => {
+    try {
+      await deleteDocument(id);
+      success("Document supprimé.");
+      navigate("/archives");
+    } catch {
+      error("Erreur lors de la suppression.");
+      setShowDelete(false);
+    }
+  };
 
-const handleRestore = async (versionId) => {
-  try {
-    await restoreVersion(id, versionId);
-    success("Version restaurée avec succès.");
-    fetchDoc();
-  } catch {
-    error("Erreur lors de la restauration.");
-  }
-};
+  const handleRestore = async (versionId) => {
+    try {
+      await restoreVersion(id, versionId);
+      success("Version restaurée avec succès.");
+      fetchDoc();
+    } catch {
+      error("Erreur lors de la restauration.");
+    }
+  };
 
   // ── Chargement ────────────────────────────────────────────────────────
   if (loading) return (
@@ -197,10 +196,10 @@ const handleRestore = async (versionId) => {
     </div>
   );
 
-  if (error || !doc) return (
+  if (fetchError || !doc) return (
     <div className="flex flex-col items-center justify-center py-24 text-slate-400">
       <MdInsertDriveFile className="text-5xl mb-3 text-slate-300" />
-      <p className="text-sm">{error || "Document introuvable."}</p>
+      <p className="text-sm">{fetchError || "Document introuvable."}</p>
       <button onClick={() => navigate("/archives")}
         className="mt-4 text-teal-600 text-sm hover:underline">
         ← Retour aux archives
@@ -244,9 +243,10 @@ const handleRestore = async (versionId) => {
             </div>
           </div>
 
+          {/* Actions */}
           <div className="flex items-center gap-2 flex-shrink-0">
             {doc.current_version?.file && (
-              <a
+             <a 
                 href={`http://localhost:8000${doc.current_version.file}`}
                 target="_blank"
                 rel="noreferrer"
@@ -256,13 +256,16 @@ const handleRestore = async (versionId) => {
                 <MdDownload className="text-lg" /> Télécharger
               </a>
             )}
-            <button
-              onClick={() => setShowDelete(true)}
-              className="flex items-center gap-1.5 border border-rose-100 text-rose-500
-                         text-sm px-3 py-2 rounded-lg hover:bg-rose-50 transition"
-            >
-              <MdDelete className="text-lg" />
-            </button>
+            {/* ✅ Bouton supprimer visible seulement pour admin */}
+            {user?.role === "admin" && (
+              <button
+                onClick={() => setShowDelete(true)}
+                className="flex items-center gap-1.5 border border-rose-100 text-rose-500
+                           text-sm px-3 py-2 rounded-lg hover:bg-rose-50 transition"
+              >
+                <MdDelete className="text-lg" /> Supprimer
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -314,7 +317,6 @@ const handleRestore = async (versionId) => {
                 </a>
               )}
             </div>
-
             {doc.description && (
               <div className="mt-4">
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
@@ -331,7 +333,6 @@ const handleRestore = async (versionId) => {
               <MdInfo className="text-teal-600" /> Métadonnées
             </h3>
             <div className="space-y-4">
-
               <div className="flex items-start gap-3">
                 <MdPerson className="text-slate-400 text-lg mt-0.5 flex-shrink-0" />
                 <div>
@@ -343,7 +344,6 @@ const handleRestore = async (versionId) => {
                   </p>
                 </div>
               </div>
-
               <div className="flex items-start gap-3">
                 <MdCalendarToday className="text-slate-400 text-lg mt-0.5 flex-shrink-0" />
                 <div>
@@ -355,7 +355,6 @@ const handleRestore = async (versionId) => {
                   </p>
                 </div>
               </div>
-
               {doc.category && (
                 <div className="flex items-start gap-3">
                   <MdFolder className="text-slate-400 text-lg mt-0.5 flex-shrink-0" />
@@ -365,7 +364,6 @@ const handleRestore = async (versionId) => {
                   </div>
                 </div>
               )}
-
               {doc.tags_list?.length > 0 && (
                 <div className="flex items-start gap-3">
                   <MdLabel className="text-slate-400 text-lg mt-0.5 flex-shrink-0" />
@@ -383,7 +381,6 @@ const handleRestore = async (versionId) => {
                   </div>
                 </div>
               )}
-
               <div className="flex items-start gap-3">
                 <MdHistory className="text-slate-400 text-lg mt-0.5 flex-shrink-0" />
                 <div>
@@ -393,7 +390,6 @@ const handleRestore = async (versionId) => {
                   </p>
                 </div>
               </div>
-
             </div>
           </div>
         </div>
@@ -407,13 +403,15 @@ const handleRestore = async (versionId) => {
               <MdHistory className="text-teal-600" />
               Historique des versions
             </h3>
-            <button
-              onClick={() => setShowVersion(true)}
-              className="flex items-center gap-2 bg-teal-700 text-white text-xs
-                         px-3 py-1.5 rounded-lg hover:bg-teal-800 transition"
-            >
-              <MdUploadFile className="text-sm" /> Nouvelle version
-            </button>
+            {["admin", "editeur"].includes(user?.role) && (
+              <button
+                onClick={() => setShowVersion(true)}
+                className="flex items-center gap-2 bg-teal-700 text-white text-xs
+                           px-3 py-1.5 rounded-lg hover:bg-teal-800 transition"
+              >
+                <MdUploadFile className="text-sm" /> Nouvelle version
+              </button>
+            )}
           </div>
 
           <div className="divide-y divide-slate-100">
@@ -458,7 +456,6 @@ const handleRestore = async (versionId) => {
                       </div>
                     </div>
                   </div>
-
                   <div className="flex items-center gap-2 flex-shrink-0">
                     {v.file && (
                       <a
@@ -473,7 +470,7 @@ const handleRestore = async (versionId) => {
                         <MdDownload className="text-sm" /> DL
                       </a>
                     )}
-                    {!v.is_current && (
+                    {!v.is_current && user?.role === "admin" && (
                       <button
                         onClick={(e) => { e.stopPropagation(); handleRestore(v.id); }}
                         className="text-xs flex items-center gap-1 border border-teal-100
@@ -498,7 +495,6 @@ const handleRestore = async (versionId) => {
           onClose={() => setShowDelete(false)}
         />
       )}
-
       {showVersion && (
         <NewVersionModal
           docId={id}
