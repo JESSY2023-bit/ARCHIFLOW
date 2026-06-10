@@ -3,25 +3,25 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import "./index.css";
 
-import LoginPage      from "./pages/LoginPage";
-import DashboardPage  from "./pages/DashboardPage";
-import PrivateRoute   from "./components/PrivateRoute";
-import Layout         from "./components/Layout";
-import DocumentDetailPage from "./pages/DocumentDetailPage";
-
-// Pages à venir (placeholders pour l'instant)
-import ArchivesPage from "./pages/ArchivesPage";
-import UploadPage from "./pages/UploadPage";
-import UsersPage from "./pages/UsersPage";
+import LoginPage           from "./pages/LoginPage";
+import DashboardPage       from "./pages/DashboardPage";
+import ArchivesPage        from "./pages/ArchivesPage";
+import UploadPage          from "./pages/UploadPage";
+import UsersPage           from "./pages/UsersPage";
+import DocumentDetailPage  from "./pages/DocumentDetailPage";
+import ProfilePage         from "./pages/ProfilePage";
+import UnauthorizedPage    from "./pages/UnauthorizedPage";
+import PrivateRoute        from "./components/PrivateRoute";
+import Layout              from "./components/Layout";
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
     <BrowserRouter>
       <Routes>
 
-        <Route path="/login" element={<LoginPage />} />
+        <Route path="/login"        element={<LoginPage />} />
+        <Route path="/unauthorized" element={<UnauthorizedPage />} />
 
-        {/* Toutes les pages protégées partagent le Layout */}
         <Route
           element={
             <PrivateRoute>
@@ -29,11 +29,37 @@ createRoot(document.getElementById("root")).render(
             </PrivateRoute>
           }
         >
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/archives"  element={<ArchivesPage />} />
-           <Route path="/archives/:id" element={<DocumentDetailPage />} />
-          <Route path="/upload"    element={<UploadPage />} />
-          <Route path="/users"     element={<UsersPage />} />
+          {/* Admin + Éditeur */}
+          <Route path="/dashboard"
+            element={
+              <PrivateRoute roles={["admin", "editeur"]}>
+                <DashboardPage />
+              </PrivateRoute>
+            }
+          />
+
+          {/* Tous les rôles */}
+          <Route path="/archives"     element={<ArchivesPage />} />
+          <Route path="/archives/:id" element={<DocumentDetailPage />} />
+          <Route path="/profile"      element={<ProfilePage />} />
+
+          {/* Admin + Éditeur uniquement */}
+          <Route path="/upload"
+            element={
+              <PrivateRoute roles={["admin", "editeur"]}>
+                <UploadPage />
+              </PrivateRoute>
+            }
+          />
+
+          {/* Admin uniquement */}
+          <Route path="/users"
+            element={
+              <PrivateRoute roles={["admin"]}>
+                <UsersPage />
+              </PrivateRoute>
+            }
+          />
         </Route>
 
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

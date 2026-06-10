@@ -8,6 +8,15 @@ from .serializers import (
     DocumentSerializer, DocumentCreateSerializer,
     DocumentVersionSerializer, CategorySerializer,
 )
+from rest_framework.permissions import BasePermission
+
+class IsAdminOrEditeur(BasePermission):
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and request.user.role in ["admin", "editeur"]
+
+class IsAdminOnly(BasePermission):
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and request.user.role == "admin"
 
 class CategoryListView(generics.ListCreateAPIView):
     queryset           = Category.objects.all()
@@ -38,10 +47,20 @@ class DocumentListCreateView(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         serializer.save()
 
+    def get_permissions(self):
+        if self.request.method == "POST":
+            return [IsAdminOrEditeur()]
+        return [permissions.IsAuthenticated()]
+
 class DocumentDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset           = Document.objects.select_related("author", "category").prefetch_related("versions")
     serializer_class   = DocumentSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    def get_permissions(self):
+        if self.request.method == "DELETE":
+            return [IsAdminOnly()]
+        return [permissions.IsAuthenticated()]
 
 class DocumentVersionCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]

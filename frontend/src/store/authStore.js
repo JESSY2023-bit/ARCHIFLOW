@@ -30,6 +30,14 @@ export const useAuthStore = create(
       },
 
       isAuthenticated: () => !!useAuthStore.getState().token,
+      // Ajoute après isAuthenticated :
+hasRole: (roles) => {
+  const user = useAuthStore.getState().user;
+  return roles.includes(user?.role);
+},
+isAdmin:   () => useAuthStore.getState().user?.role === "admin",
+isEditeur: () => ["admin", "editeur"].includes(useAuthStore.getState().user?.role),
+isLecteur: () => useAuthStore.getState().user?.role === "lecteur",
     }),
     { name: "auth-storage" }
   )

@@ -6,6 +6,8 @@ import {
   MdInsertDriveFile, MdDownload, MdDelete, MdVisibility,
 } from "react-icons/md";
 import { getDocuments, deleteDocument } from "../api/documents";
+import { useAuthStore } from "../store/authStore";
+import { useToastStore } from "../store/toastStore";
 
 const typeIcon = {
   PDF:   <MdPictureAsPdf className="text-rose-500 text-xl" />,
@@ -26,6 +28,7 @@ export default function ArchivesPage() {
   const [search, setSearch]         = useState("");
   const [filterType, setFilterType] = useState("Tous");
   const navigate                    = useNavigate();
+  const { success } = useToastStore();
 
   const fetchDocuments = useCallback(async () => {
     setLoading(true);
@@ -45,17 +48,20 @@ export default function ArchivesPage() {
 
   useEffect(() => { fetchDocuments(); }, [fetchDocuments]);
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Supprimer ce document ?")) return;
-    try {
-      await deleteDocument(id);
-      setDocuments((prev) => prev.filter((d) => d.id !== id));
-    } catch {
-      alert("Erreur lors de la suppression.");
-    }
-  };
+ const handleDelete = async (id) => {
+  if (!window.confirm("Supprimer ce document ?")) return;
+  try {
+    await deleteDocument(id);
+    setDocuments((prev) => prev.filter((d) => d.id !== id));
+    success("Document supprimé avec succès.");
+  } catch {
+    error("Erreur lors de la suppression.");
+  }
+};
 
   const types = ["Tous", "PDF", "Excel", "Word"];
+
+    const { user } = useAuthStore();
 
   return (
     <div>
@@ -229,13 +235,15 @@ export default function ArchivesPage() {
                         <MdDownload className="text-lg" />
                       </a>
                     )}
-                    <button
-                      onClick={() => handleDelete(doc.id)}
-                      className="text-slate-400 hover:text-rose-500 transition"
-                      title="Supprimer"
-                    >
-                      <MdDelete className="text-lg" />
-                    </button>
+                   {user?.role === "admin" && (
+  <button
+    onClick={() => handleDelete(doc.id)}
+    className="text-slate-400 hover:text-rose-500 transition"
+    title="Supprimer"
+  >
+    <MdDelete className="text-lg" />
+  </button>
+)} 
                   </div>
                 </td>
 

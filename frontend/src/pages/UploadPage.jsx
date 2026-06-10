@@ -6,6 +6,8 @@ import {
   MdCheckCircle, MdError,
 } from "react-icons/md";
 import { createDocument } from "../api/documents";
+import  { useAuthStore } from "../store/authStore";
+import { useToastStore } from "../store/toastStore";
 
 const formatSize = (bytes) => {
   if (bytes < 1024)            return `${bytes} B`;
@@ -44,6 +46,7 @@ export default function UploadPage() {
   const [dragging, setDragging] = useState(false);
   const inputRef                = useRef();
   const navigate                = useNavigate();
+  const { success, error } = useToastStore();
 
   const addFiles = useCallback((incoming) => {
     const newFiles = Array.from(incoming).map((file) => ({
@@ -88,20 +91,21 @@ export default function UploadPage() {
       setFiles((prev) =>
         prev.map((f) => (f.id === fileObj.id ? { ...f, progress: 70 } : f))
       );
-
+    
       await createDocument(formData);
-
       setFiles((prev) =>
         prev.map((f) =>
           f.id === fileObj.id ? { ...f, status: "done", progress: 100 } : f
         )
       );
-    } catch {
+      success(`"${fileObj.file.name}" uploadé avec succès.`);
+    } catch (err) {
       setFiles((prev) =>
         prev.map((f) =>
           f.id === fileObj.id ? { ...f, status: "error", progress: 0 } : f
         )
       );
+      error(`Erreur lors de l'envoi de "${fileObj.file.name}".`);
     }
   };
 

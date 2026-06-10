@@ -8,6 +8,8 @@ import {
   MdUploadFile, MdVisibility, MdInsertDriveFile,
 } from "react-icons/md";
 import { getDocument, deleteDocument, createVersion, restoreVersion } from "../api/documents";
+import { useAuthStore } from "../store/authStore";
+import { useToastStore } from "../store/toastStore";
 
 const typeIcon = {
   PDF:   <MdPictureAsPdf className="text-rose-500 text-4xl" />,
@@ -19,9 +21,11 @@ const typeBadge = {
   PDF:   "bg-rose-50 text-rose-600 border border-rose-100",
   Excel: "bg-emerald-50 text-emerald-700 border border-emerald-100",
   Word:  "bg-sky-50 text-sky-600 border border-sky-100",
-};
+};              
 
 function DeleteModal({ onConfirm, onClose }) {
+  const { user } = useAuthStore();
+  const [ setShowDelete] = useState(false);
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
       <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm">
@@ -37,11 +41,15 @@ function DeleteModal({ onConfirm, onClose }) {
                        rounded-lg hover:bg-slate-50 transition font-medium">
             Annuler
           </button>
-          <button onClick={onConfirm}
-            className="flex-1 bg-rose-500 text-white text-sm py-2.5 rounded-lg
-                       hover:bg-rose-600 transition font-medium">
-            Supprimer
-          </button>
+          {user?.role === "admin" && (
+  <button
+    onClick={() => setShowDelete(true)}
+    className="flex items-center gap-1.5 border border-rose-100 text-rose-500
+               text-sm px-3 py-2 rounded-lg hover:bg-rose-50 transition"
+  >
+    <MdDelete className="text-lg" />
+  </button>
+)}
         </div>
       </div>
     </div>
@@ -141,6 +149,7 @@ export default function DocumentDetailPage() {
   const [showDelete, setShowDelete] = useState(false);
   const [showVersion, setShowVersion] = useState(false);
   const [activeVersion, setActiveVersion] = useState(0);
+const { success } = useToastStore();
 
   const fetchDoc = async () => {
     setLoading(true);
@@ -157,23 +166,25 @@ export default function DocumentDetailPage() {
 
   useEffect(() => { fetchDoc(); }, [id]);
 
-  const handleDelete = async () => {
-    try {
-      await deleteDocument(id);
-      navigate("/archives");
-    } catch {
-      alert("Erreur lors de la suppression.");
-    }
-  };
+ const handleDelete = async () => {
+  try {
+    await deleteDocument(id);
+    success("Document supprimé.");
+    navigate("/archives");
+  } catch {
+    error("Erreur lors de la suppression.");
+  }
+};
 
-  const handleRestore = async (versionId) => {
-    try {
-      await restoreVersion(id, versionId);
-      fetchDoc();
-    } catch {
-      alert("Erreur lors de la restauration.");
-    }
-  };
+const handleRestore = async (versionId) => {
+  try {
+    await restoreVersion(id, versionId);
+    success("Version restaurée avec succès.");
+    fetchDoc();
+  } catch {
+    error("Erreur lors de la restauration.");
+  }
+};
 
   // ── Chargement ────────────────────────────────────────────────────────
   if (loading) return (

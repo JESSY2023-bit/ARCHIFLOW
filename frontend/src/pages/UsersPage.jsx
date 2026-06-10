@@ -5,6 +5,7 @@ import {
   MdCheck, MdAdminPanelSettings,
 } from "react-icons/md";
 import { getUsers, createUser, updateUser, deleteUser } from "../api/users";
+import { useToastStore } from "../store/toastStore";
 
 const roleBadge = {
   admin:   { label: "Admin",   cls: "bg-teal-50 text-teal-700 border border-teal-100",     icon: MdAdminPanelSettings },
@@ -153,6 +154,7 @@ export default function UsersPage() {
   const [filterRole, setFilterRole] = useState("Tous");
   const [modal, setModal]           = useState(null);
   const [deleteId, setDeleteId]     = useState(null);
+  const { success, error } = useToastStore();
 
   // ── Chargement ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -172,33 +174,36 @@ export default function UsersPage() {
 
   // ── CRUD ──────────────────────────────────────────────────────────────
   const saveUser = async (form) => {
-    try {
-      if (modal === "add") {
-        const res = await createUser({
-          ...form,
-          username: form.email,
-          password: "archiflow2024",
-        });
-        setUsers((prev) => [...prev, res.data]);
-      } else {
-        const res = await updateUser(modal.id, form);
-        setUsers((prev) => prev.map((u) => (u.id === modal.id ? res.data : u)));
-      }
-      setModal(null);
-    } catch {
-      alert("Erreur lors de la sauvegarde.");
+  try {
+    if (modal === "add") {
+      const res = await createUser({
+        ...form,
+        username: form.email,
+        password: "archiflow2024",
+      });
+      setUsers((prev) => [...prev, res.data]);
+      success(`Utilisateur créé ! Mot de passe par défaut : archiflow2024`);
+    } else {
+      const res = await updateUser(modal.id, form);
+      setUsers((prev) => prev.map((u) => (u.id === modal.id ? res.data : u)));
+      success("Utilisateur mis à jour avec succès.");
     }
-  };
+    setModal(null);
+  } catch {
+    error("Erreur lors de la sauvegarde.");
+  }
+};
 
   const handleDelete = async () => {
-    try {
-      await deleteUser(deleteId);
-      setUsers((prev) => prev.filter((u) => u.id !== deleteId));
-      setDeleteId(null);
-    } catch {
-      alert("Erreur lors de la suppression.");
-    }
-  };
+  try {
+    await deleteUser(deleteId);
+    setUsers((prev) => prev.filter((u) => u.id !== deleteId));
+    setDeleteId(null);
+    success("Utilisateur supprimé.");
+  } catch {
+    error("Erreur lors de la suppression.");
+  }
+};
 
   // ── Stats ─────────────────────────────────────────────────────────────
   const admins   = users.filter((u) => u.role === "admin").length;
