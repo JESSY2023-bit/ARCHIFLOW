@@ -68,3 +68,28 @@ class DocumentVersion(models.Model):
         ordering = ["-uploaded_at"]
 
 # Create your models here.
+class ActivityLog(models.Model):
+    class Action(models.TextChoices):
+        AJOUT      = "Ajout",      "Ajout"
+        MODIFIE    = "Modifié",    "Modifié"
+        SUPPRIME   = "Supprimé",   "Supprimé"
+        TELECHARGE = "Téléchargé", "Téléchargé"
+        RESTAURE   = "Restauré",   "Restauré"
+
+    user       = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, related_name="activities"
+    )
+    action     = models.CharField(max_length=20, choices=Action.choices)
+    document   = models.ForeignKey(
+        Document, on_delete=models.SET_NULL,
+        null=True, related_name="activities"
+    )
+    doc_name   = models.CharField(max_length=255)  # garde le nom même après suppression
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.action} — {self.doc_name} par {self.user}"
+
+    class Meta:
+        ordering = ["-created_at"]

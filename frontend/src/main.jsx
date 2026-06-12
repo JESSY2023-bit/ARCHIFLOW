@@ -13,6 +13,7 @@ import ProfilePage         from "./pages/ProfilePage";
 import UnauthorizedPage    from "./pages/UnauthorizedPage";
 import PrivateRoute        from "./components/PrivateRoute";
 import Layout              from "./components/Layout";
+import NotFoundPage        from "./pages/NotFoundPage";
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
@@ -62,7 +63,7 @@ createRoot(document.getElementById("root")).render(
           />
         </Route>
 
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+       <Route path="*" element={<NotFoundPage />} />
 
       </Routes>
     </BrowserRouter>

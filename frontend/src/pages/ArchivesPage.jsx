@@ -1,13 +1,14 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   MdSearch, MdFilterList, MdClose, MdAdd,
   MdPictureAsPdf, MdTableChart, MdDescription,
-  MdInsertDriveFile, MdDownload, MdDelete, MdVisibility, MdWarning,
+  MdInsertDriveFile, MdDownload, MdDelete, MdVisibility,
 } from "react-icons/md";
 import { getDocuments, deleteDocument } from "../api/documents";
 import { useAuthStore } from "../store/authStore";
 import { useToastStore } from "../store/toastStore";
+import Pagination from "../components/Pagination";
 
 const typeIcon = {
   PDF:   <MdPictureAsPdf className="text-rose-500 text-xl" />,
@@ -21,7 +22,6 @@ const typeBadge = {
   Word:  "bg-sky-50 text-sky-600 border border-sky-100",
 };
 
-// ── Modal confirmation suppression ────────────────────────────────────────
 function DeleteModal({ docName, onConfirm, onClose }) {
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
@@ -32,11 +32,11 @@ function DeleteModal({ docName, onConfirm, onClose }) {
         <p className="text-sm text-slate-500 mb-1">
           Vous êtes sur le point de supprimer :
         </p>
-        <p className="text-sm font-medium text-slate-700 mb-5 truncate">
-           <MdDescription className="inline mr-1" /> {docName}
+        <p className="text-sm font-medium text-slate-700 mb-3 truncate">
+          📄 {docName}
         </p>
         <p className="text-xs text-rose-400 mb-5">
-          <MdWarning className="inline mr-1" /> Cette action est irréversible.
+          ⚠️ Cette action est irréversible.
         </p>
         <div className="flex gap-3">
           <button onClick={onClose}
@@ -60,42 +60,76 @@ export default function ArchivesPage() {
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState(null);
   const [search, setSearch]         = useState("");
+  const [searchInput, setSearchInput] = useState(""); // ✅ valeur brute input
   const [filterType, setFilterType] = useState("Tous");
-  const [deleteTarget, setDeleteTarget] = useState(null); // { id, name }
-  const navigate                    = useNavigate();
-  const { user }                    = useAuthStore();
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [page, setPage]             = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const PAGE_SIZE = 10;
+  const navigate  = useNavigate();
+  const { user }  = useAuthStore();
   const { success, error: toastError } = useToastStore();
 
+  // ── Debounce recherche (500ms) ─────────────────────────────────────────
+  const debounceRef = useRef(null);
+  const handleSearchInput = (val) => {
+    setSearchInput(val);
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setSearch(val);
+      setPage(1);
+    }, 500);
+  };
+
+  // ── Chargement ────────────────────────────────────────────────────────
   const fetchDocuments = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const params = {};
+      const params = { page };
       if (search)                params.search = search;
       if (filterType !== "Tous") params.type   = filterType;
       const res = await getDocuments(params);
-      setDocuments(res.data.results || res.data);
+      const data = res.data;
+      // Support pagination DRF (results) ou tableau simple
+      if (data.results !== undefined) {
+        setDocuments(data.results);
+        setTotalItems(data.count);
+        setTotalPages(Math.ceil(data.count / PAGE_SIZE));
+      } else {
+        setDocuments(data);
+        setTotalItems(data.length);
+        setTotalPages(1);
+      }
     } catch {
       setError("Impossible de charger les documents.");
     } finally {
       setLoading(false);
     }
-  }, [search, filterType]);
+  }, [search, filterType, page]);
 
   useEffect(() => { fetchDocuments(); }, [fetchDocuments]);
 
-  // ── Suppression avec modal ────────────────────────────────────────────
+  // ── Suppression ────────────────────────────────────────────────────────
   const handleDelete = async () => {
     if (!deleteTarget) return;
     try {
       await deleteDocument(deleteTarget.id);
-      setDocuments((prev) => prev.filter((d) => d.id !== deleteTarget.id));
       success("Document supprimé avec succès.");
+      fetchDocuments();
     } catch {
       toastError("Erreur lors de la suppression.");
     } finally {
       setDeleteTarget(null);
     }
+  };
+
+  const resetFilters = () => {
+    setSearchInput("");
+    setSearch("");
+    setFilterType("Tous");
+    setPage(1);
   };
 
   const types = ["Tous", "PDF", "Excel", "Word"];
@@ -108,7 +142,7 @@ export default function ArchivesPage() {
         <div>
           <h2 className="text-xl font-bold text-slate-800">Archives</h2>
           <p className="text-sm text-slate-400 mt-0.5">
-            {documents.length} document{documents.length > 1 ? "s" : ""}
+            {totalItems} document{totalItems > 1 ? "s" : ""}
           </p>
         </div>
         {["admin", "editeur"].includes(user?.role) && (
@@ -126,12 +160,13 @@ export default function ArchivesPage() {
       <div className="bg-white rounded-xl border border-slate-200 p-4 mb-4">
         <div className="flex flex-wrap gap-3 items-center">
           <div className="relative flex-1 min-w-48">
-            <MdSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg" />
+            <MdSearch className="absolute left-3 top-1/2 -translate-y-1/2
+                                  text-slate-400 text-lg" />
             <input
               type="text"
               placeholder="Rechercher par nom ou tag..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={searchInput}
+              onChange={(e) => handleSearchInput(e.target.value)}
               className="w-full border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm
                          focus:outline-none focus:ring-2 focus:ring-teal-500"
             />
@@ -140,16 +175,16 @@ export default function ArchivesPage() {
             <MdFilterList className="text-slate-400 text-lg" />
             <select
               value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
+              onChange={(e) => { setFilterType(e.target.value); setPage(1); }}
               className="border border-slate-200 rounded-lg px-3 py-2 text-sm
                          focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
             >
               {types.map((t) => <option key={t}>{t}</option>)}
             </select>
           </div>
-          {(search || filterType !== "Tous") && (
+          {(searchInput || filterType !== "Tous") && (
             <button
-              onClick={() => { setSearch(""); setFilterType("Tous"); }}
+              onClick={resetFilters}
               className="flex items-center gap-1 text-sm text-slate-400
                          hover:text-rose-500 transition px-2"
             >
@@ -262,8 +297,8 @@ export default function ArchivesPage() {
                       <MdVisibility className="text-lg" />
                     </button>
                     {doc.current_version?.file && (
-                      <a
-                        href={`http://localhost:8000${doc.current_version.file}`}
+                      
+                     <a   href={`http://localhost:8000${doc.current_version.file}`}
                         target="_blank"
                         rel="noreferrer"
                         className="text-slate-400 hover:text-teal-600 transition"
@@ -272,7 +307,6 @@ export default function ArchivesPage() {
                         <MdDownload className="text-lg" />
                       </a>
                     )}
-                    {/*  Modal suppression pour admin */}
                     {user?.role === "admin" && (
                       <button
                         onClick={() => setDeleteTarget({ id: doc.id, name: doc.name })}
@@ -289,6 +323,15 @@ export default function ArchivesPage() {
             ))}
           </tbody>
         </table>
+
+        {/*  Pagination */}
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          pageSize={PAGE_SIZE}
+          onPageChange={setPage}
+        />
       </div>
 
       {/* ── Modal suppression ── */}

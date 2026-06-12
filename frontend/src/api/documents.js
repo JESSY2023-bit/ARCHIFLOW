@@ -30,3 +30,6 @@ export const restoreVersion = (docId, versionId) =>
 // ── Catégories ─────────────────────────────────────────────────────────────
 export const getCategories = () =>
   api.get("/documents/categories/");
+
+export const getActivityLogs = (limit = 10) =>
+  api.get("/documents/activity/", { params: { limit } });

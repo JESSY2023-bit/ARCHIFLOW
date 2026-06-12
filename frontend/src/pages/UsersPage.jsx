@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import {
   MdPersonAdd, MdSearch, MdEdit, MdDelete,
-  MdShield, MdPerson, MdVisibility, MdClose,
+  MdPerson, MdVisibility, MdClose,
   MdCheck, MdAdminPanelSettings,
 } from "react-icons/md";
 import { getUsers, createUser, updateUser, deleteUser } from "../api/users";
 import { useToastStore } from "../store/toastStore";
+import Pagination from "../components/Pagination";
 
 const roleBadge = {
   admin:   { label: "Admin",   cls: "bg-teal-50 text-teal-700 border border-teal-100",     icon: MdAdminPanelSettings },
@@ -18,13 +19,14 @@ const statusBadge = {
   inactif: "bg-rose-50 text-rose-500 border border-rose-100",
 };
 
+const PAGE_SIZE = 10;
+
 // ── Modal ajout / édition ──────────────────────────────────────────────────
 function UserModal({ user, onClose, onSave }) {
   const [form, setForm] = useState(
     user
       ? { first_name: user.first_name, last_name: user.last_name,
-          email: user.email, role: user.role,
-          is_active: user.is_active }
+          email: user.email, role: user.role, is_active: user.is_active }
       : { first_name: "", last_name: "", email: "", role: "lecteur", is_active: true }
   );
   const [loading, setLoading] = useState(false);
@@ -154,17 +156,32 @@ export default function UsersPage() {
   const [filterRole, setFilterRole] = useState("Tous");
   const [modal, setModal]           = useState(null);
   const [deleteId, setDeleteId]     = useState(null);
-  const { success, error } = useToastStore();
+  const [page, setPage]             = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const { success, error: toastError } = useToastStore();
 
   // ── Chargement ────────────────────────────────────────────────────────
   useEffect(() => {
-    getUsers()
-      .then((res) => setUsers(res.data.results || res.data))
-      .catch(() => alert("Erreur chargement utilisateurs"))
+    setLoading(true);
+    getUsers({ page })
+      .then((res) => {
+        const data = res.data;
+        if (data.results !== undefined) {
+          setUsers(data.results);
+          setTotalItems(data.count);
+          setTotalPages(Math.ceil(data.count / PAGE_SIZE));
+        } else {
+          setUsers(data);
+          setTotalItems(data.length);
+          setTotalPages(1);
+        }
+      })
+      .catch(() => toastError("Erreur chargement utilisateurs"))
       .finally(() => setLoading(false));
-  }, []);
+  }, [page]);
 
-  // ── Filtrage ──────────────────────────────────────────────────────────
+  // ── Filtrage local ────────────────────────────────────────────────────
   const filtered = users.filter((u) => {
     const name = `${u.first_name} ${u.last_name} ${u.email}`.toLowerCase();
     const matchSearch = name.includes(search.toLowerCase());
@@ -174,36 +191,38 @@ export default function UsersPage() {
 
   // ── CRUD ──────────────────────────────────────────────────────────────
   const saveUser = async (form) => {
-  try {
-    if (modal === "add") {
-      const res = await createUser({
-        ...form,
-        username: form.email,
-        password: "archiflow2024",
-      });
-      setUsers((prev) => [...prev, res.data]);
-      success(`Utilisateur créé ! Mot de passe par défaut : archiflow2024`);
-    } else {
-      const res = await updateUser(modal.id, form);
-      setUsers((prev) => prev.map((u) => (u.id === modal.id ? res.data : u)));
-      success("Utilisateur mis à jour avec succès.");
+    try {
+      if (modal === "add") {
+        const res = await createUser({
+          ...form,
+          username: form.email,
+          password: "archiflow2024",
+        });
+        setUsers((prev) => [...prev, res.data]);
+        setTotalItems((n) => n + 1);
+        success(`Utilisateur créé ! Mot de passe par défaut : archiflow2024`);
+      } else {
+        const res = await updateUser(modal.id, form);
+        setUsers((prev) => prev.map((u) => (u.id === modal.id ? res.data : u)));
+        success("Utilisateur mis à jour avec succès.");
+      }
+      setModal(null);
+    } catch {
+      toastError("Erreur lors de la sauvegarde.");
     }
-    setModal(null);
-  } catch {
-    error("Erreur lors de la sauvegarde.");
-  }
-};
+  };
 
   const handleDelete = async () => {
-  try {
-    await deleteUser(deleteId);
-    setUsers((prev) => prev.filter((u) => u.id !== deleteId));
-    setDeleteId(null);
-    success("Utilisateur supprimé.");
-  } catch {
-    error("Erreur lors de la suppression.");
-  }
-};
+    try {
+      await deleteUser(deleteId);
+      setUsers((prev) => prev.filter((u) => u.id !== deleteId));
+      setTotalItems((n) => n - 1);
+      setDeleteId(null);
+      success("Utilisateur supprimé.");
+    } catch {
+      toastError("Erreur lors de la suppression.");
+    }
+  };
 
   // ── Stats ─────────────────────────────────────────────────────────────
   const admins   = users.filter((u) => u.role === "admin").length;
@@ -213,12 +232,13 @@ export default function UsersPage() {
 
   return (
     <div>
+
       {/* ── En-tête ── */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-xl font-bold text-slate-800">Utilisateurs</h2>
           <p className="text-sm text-slate-400 mt-0.5">
-            {users.length} compte{users.length > 1 ? "s" : ""} · {actifs} actif{actifs > 1 ? "s" : ""}
+            {totalItems} compte{totalItems > 1 ? "s" : ""} · {actifs} actif{actifs > 1 ? "s" : ""}
           </p>
         </div>
         <button
@@ -371,6 +391,15 @@ export default function UsersPage() {
             })}
           </tbody>
         </table>
+
+        {/* Pagination */}
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          pageSize={PAGE_SIZE}
+          onPageChange={setPage}
+        />
       </div>
 
       {/* ── Modal ajout / édition ── */}

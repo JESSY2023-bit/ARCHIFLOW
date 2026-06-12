@@ -7,7 +7,7 @@ import {
 import {
   MdFolderOpen, MdUploadFile, MdPeople, MdTrendingUp,
 } from "react-icons/md";
-import { getDocuments } from "../api/documents";
+import { getDocuments, getActivityLogs } from "../api/documents";
 import { getUsers } from "../api/users";
 import { useAuthStore } from "../store/authStore";
 
@@ -17,6 +17,8 @@ const actionBadge = {
   "Ajout":      "bg-teal-50 text-teal-700 border border-teal-100",
   "Modifié":    "bg-amber-50 text-amber-700 border border-amber-100",
   "Supprimé":   "bg-rose-50 text-rose-600 border border-rose-100",
+  "Téléchargé": "bg-slate-100 text-slate-600 border border-slate-200",
+  "Restauré":   "bg-sky-50 text-sky-600 border border-sky-100",
 };
 
 function StatCard({ label, value, sub, icon: Icon, accent }) {
@@ -39,20 +41,18 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const [docs, setDocs]   = useState([]);
   const [users, setUsers] = useState([]);
+  const [logs, setLogs]   = useState([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuthStore();
 
  useEffect(() => {
-  const promises = [getDocuments()];
-  
-  // On appelle getUsers() seulement si admin
-  if (user?.role === "admin") {
-    promises.push(getUsers());
-  }
+  const promises = [getDocuments(), getActivityLogs(5)];
+  if (user?.role === "admin") promises.push(getUsers());
 
   Promise.all(promises)
-    .then(([docsRes, usersRes]) => {
-      setDocs(docsRes.data.results || docsRes.data);
+    .then(([docsRes, logsRes, usersRes]) => {
+      setDocs(docsRes.data.results     || docsRes.data);
+      setLogs(logsRes.data.results     || logsRes.data);
       if (usersRes) setUsers(usersRes.data.results || usersRes.data);
     })
     .catch(() => {})
@@ -252,48 +252,58 @@ export default function DashboardPage() {
         </div>
 
         {/* Activité récente */}
-        <div className="xl:col-span-2 bg-white rounded-xl border border-slate-200 p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold text-slate-700">Activité récente</h3>
-            <button
-              onClick={() => navigate("/archives")}
-              className="text-xs text-teal-600 hover:underline"
-            >
-              Voir tout →
-            </button>
-          </div>
+<div className="xl:col-span-2 bg-white rounded-xl border border-slate-200 p-5">
+  <div className="flex items-center justify-between mb-4">
+    <h3 className="text-sm font-semibold text-slate-700">Activité récente</h3>
+    <button
+      onClick={() => navigate("/archives")}
+      className="text-xs text-teal-600 hover:underline"
+    >
+      Voir tout →
+    </button>
+  </div>
 
-          {recentActivity.length === 0 ? (
-            <div className="py-8 text-center text-slate-400 text-sm">
-              Aucune activité récente.
+  {logs.length === 0 ? (
+    <div className="py-8 text-center text-slate-400 text-sm">
+      Aucune activité récente.
+    </div>
+  ) : (
+    <div className="space-y-3">
+      {logs.map((item) => (
+        <div
+          key={item.id}
+          onClick={() => item.document && navigate(`/archives/${item.document}`)}
+          className={`flex items-center justify-between gap-3 py-2
+                     border-b border-slate-100 last:border-0 rounded-lg px-2
+                     transition
+                     ${item.document
+                       ? "cursor-pointer hover:bg-slate-50"
+                       : "cursor-default"
+                     }`}
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-7 h-7 rounded-full bg-teal-100 text-teal-700
+                            text-xs flex items-center justify-center font-bold flex-shrink-0">
+              {(item.user_name?.[0] || "?").toUpperCase()}
             </div>
-          ) : (
-            <div className="space-y-3">
-              {recentActivity.map((item) => (
-                <div key={item.id}
-                  onClick={() => navigate(`/archives/${item.id}`)}
-                  className="flex items-center justify-between gap-3 py-2
-                             border-b border-slate-100 last:border-0 cursor-pointer
-                             hover:bg-slate-50 rounded-lg px-2 transition">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-7 h-7 rounded-full bg-teal-100 text-teal-700
-                                    text-xs flex items-center justify-center font-bold flex-shrink-0">
-                      {(item.user[0] || "?").toUpperCase()}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm text-slate-700 font-medium truncate">{item.doc}</p>
-                      <p className="text-xs text-slate-400">{item.user} · {item.time}</p>
-                    </div>
-                  </div>
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full
-                                    flex-shrink-0 ${actionBadge[item.action]}`}>
-                    {item.action}
-                  </span>
-                </div>
-              ))}
+            <div className="min-w-0">
+              <p className="text-sm text-slate-700 font-medium truncate">
+                {item.doc_name}
+              </p>
+              <p className="text-xs text-slate-400">
+                {item.user_name} · {new Date(item.created_at).toLocaleDateString("fr-FR")}
+              </p>
             </div>
-          )}
+          </div>
+          <span className={`text-xs font-medium px-2 py-0.5 rounded-full
+                            flex-shrink-0 ${actionBadge[item.action] || actionBadge["Ajout"]}`}>
+            {item.action}
+          </span>
         </div>
+      ))}
+    </div>
+  )}
+</div>
       </div>
     </div>
   );

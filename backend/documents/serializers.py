@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Document, DocumentVersion, Category
+from .models import Document, DocumentVersion, Category, ActivityLog
 from users.serializers import UserSerializer
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -81,3 +81,16 @@ class DocumentCreateSerializer(serializers.ModelSerializer):
             is_current  = True,
         )
         return document
+    from .models import Document, DocumentVersion, Category, ActivityLog
+
+class ActivityLogSerializer(serializers.ModelSerializer):
+    user_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model  = ActivityLog
+        fields = ["id", "action", "doc_name", "document", "user_name", "created_at"]
+
+    def get_user_name(self, obj):
+        if not obj.user:
+            return "—"
+        return obj.user.first_name or obj.user.email.split("@")[0]
