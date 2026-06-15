@@ -3,10 +3,18 @@ from .models import Document, DocumentVersion, Category, ActivityLog
 from users.serializers import UserSerializer
 
 class CategorySerializer(serializers.ModelSerializer):
+    # read_only=True obligatoire pour les champs calculés
+    document_count = serializers.SerializerMethodField(read_only=True)
+
     class Meta:
         model  = Category
-        fields = ["id", "name"]
+        # document_count retiré de fields pour la création
+        fields = ["id", "name", "document_count"]
+        # document_count en lecture seule
+        read_only_fields = ["document_count"]
 
+    def get_document_count(self, obj):
+        return obj.documents.count()
 class DocumentVersionSerializer(serializers.ModelSerializer):
     uploaded_by = UserSerializer(read_only=True)
     size_display = serializers.SerializerMethodField()

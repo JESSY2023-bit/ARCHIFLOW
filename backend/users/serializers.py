@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import User
+from .models import User, Invitation
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -25,3 +26,25 @@ class UserUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model  = User
         fields = ["first_name", "last_name", "role", "is_active"]
+
+class InvitationSerializer(serializers.ModelSerializer):
+    invited_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model  = Invitation
+        fields = ["id", "email", "role", "is_used", "is_expired",
+                  "invited_by_name", "created_at", "expires_at"]
+
+    def get_invited_by_name(self, obj):
+        if not obj.invited_by: return "—"
+        return obj.invited_by.first_name or obj.invited_by.email
+
+class SetPasswordSerializer(serializers.Serializer):
+    token    = serializers.UUIDField()
+    password = serializers.CharField(min_length=6)
+    confirm  = serializers.CharField(min_length=6)
+
+    def validate(self, data):
+        if data["password"] != data["confirm"]:
+            raise serializers.ValidationError("Les mots de passe ne correspondent pas.")
+        return data

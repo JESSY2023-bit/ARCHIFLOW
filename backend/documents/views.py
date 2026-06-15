@@ -35,6 +35,12 @@ class CategoryListView(generics.ListCreateAPIView):
     serializer_class   = CategorySerializer
     permission_classes = [permissions.IsAuthenticated]
 
+# Ajoute dans documents/views.py :
+class CategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset           = Category.objects.all()
+    serializer_class   = CategorySerializer
+    permission_classes = [IsAdminOnly]
+
 
 class DocumentListCreateView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated]

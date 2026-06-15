@@ -121,7 +121,16 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": (
         "rest_framework.permissions.IsAuthenticated",
     ),
-    # ✅ Pagination globale
+    # Pagination globale
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 10,
 }
+# ── Email ─────────────────────────────────────────────────────────────────
+EMAIL_BACKEND = config("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")
+
+# En production avec SendGrid :
+# EMAIL_BACKEND = "anymail.backends.sendgrid.EmailBackend"
+# ANYMAIL = { "SENDGRID_API_KEY": config("SENDGRID_API_KEY") }
+
+DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="noreply@archiflow.com")
+FRONTEND_URL       = config("FRONTEND_URL", default="http://localhost:5173")
