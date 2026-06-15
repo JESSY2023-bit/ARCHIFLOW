@@ -33,3 +33,7 @@ export const getCategories = () =>
 
 export const getActivityLogs = (limit = 10) =>
   api.get("/documents/activity/", { params: { limit } });
+
+export const createCategory = (data)     => api.post("/documents/categories/", data);
+export const updateCategory = (id, data) => api.patch(`/documents/categories/${id}/`, data);
+export const deleteCategory = (id)       => api.delete(`/documents/categories/${id}/`);

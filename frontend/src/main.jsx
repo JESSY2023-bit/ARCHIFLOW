@@ -3,17 +3,24 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import "./index.css";
 
-import LoginPage           from "./pages/LoginPage";
-import DashboardPage       from "./pages/DashboardPage";
-import ArchivesPage        from "./pages/ArchivesPage";
-import UploadPage          from "./pages/UploadPage";
-import UsersPage           from "./pages/UsersPage";
-import DocumentDetailPage  from "./pages/DocumentDetailPage";
-import ProfilePage         from "./pages/ProfilePage";
-import UnauthorizedPage    from "./pages/UnauthorizedPage";
-import PrivateRoute        from "./components/PrivateRoute";
-import Layout              from "./components/Layout";
-import NotFoundPage        from "./pages/NotFoundPage";
+import LoginPage          from "./pages/LoginPage";
+import DashboardPage      from "./pages/DashboardPage";
+import ArchivesPage       from "./pages/ArchivesPage";
+import UploadPage         from "./pages/UploadPage";
+import UsersPage          from "./pages/UsersPage";
+import DocumentDetailPage from "./pages/DocumentDetailPage";
+import ProfilePage        from "./pages/ProfilePage";
+import UnauthorizedPage   from "./pages/UnauthorizedPage";
+import CategoriesPage     from "./pages/CategoriesPage";
+import NotFoundPage       from "./pages/NotFoundPage";
+import PrivateRoute       from "./components/PrivateRoute";
+import Layout             from "./components/Layout";
+import SetPasswordPage from "./pages/SetPasswordPage";
+import { applyTheme } from "./config/theme";
+
+applyTheme();
+
+createRoot(document.getElementById("root")).render(  );
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
@@ -22,6 +29,7 @@ createRoot(document.getElementById("root")).render(
 
         <Route path="/login"        element={<LoginPage />} />
         <Route path="/unauthorized" element={<UnauthorizedPage />} />
+        <Route path="/set-password/:token" element={<SetPasswordPage />} /> 
 
         <Route
           element={
@@ -61,9 +69,19 @@ createRoot(document.getElementById("root")).render(
               </PrivateRoute>
             }
           />
+
+          {/*Catégories — Admin uniquement */}
+          <Route path="/categories"
+            element={
+              <PrivateRoute roles={["admin"]}>
+                <CategoriesPage />
+              </PrivateRoute>
+            }
+          />
+
         </Route>
 
-       <Route path="*" element={<NotFoundPage />} />
+        <Route path="*" element={<NotFoundPage />} />
 
       </Routes>
     </BrowserRouter>

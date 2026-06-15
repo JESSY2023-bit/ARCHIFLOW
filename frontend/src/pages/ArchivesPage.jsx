@@ -210,17 +210,25 @@ export default function ArchivesPage() {
           </thead>
           <tbody className="divide-y divide-slate-100">
 
-            {loading && (
-              <tr>
-                <td colSpan={6} className="text-center py-16 text-slate-400">
-                  <div className="flex items-center justify-center gap-2">
-                    <div className="w-4 h-4 border-2 border-teal-500 border-t-transparent
-                                    rounded-full animate-spin" />
-                    Chargement...
-                  </div>
-                </td>
-              </tr>
-            )}
+          {loading && (
+  <>
+    {[...Array(5)].map((_, i) => (
+      <tr key={i}>
+        <td className="px-4 py-3">
+          <div className="flex items-center gap-2">
+            <div className="skeleton w-6 h-6 rounded-full" />
+            <div className="skeleton h-4 w-48 rounded" />
+          </div>
+        </td>
+        <td className="px-4 py-3"><div className="skeleton h-4 w-12 rounded-full" /></td>
+        <td className="px-4 py-3"><div className="skeleton h-4 w-16 rounded" /></td>
+        <td className="px-4 py-3"><div className="skeleton h-4 w-20 rounded" /></td>
+        <td className="px-4 py-3"><div className="skeleton h-4 w-24 rounded" /></td>
+        <td className="px-4 py-3"><div className="skeleton h-4 w-16 rounded" /></td>
+      </tr>
+    ))}
+  </>
+)}
 
             {!loading && error && (
               <tr>

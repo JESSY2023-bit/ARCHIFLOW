@@ -91,19 +91,6 @@ export default function ProfilePage() {
         </p>
       </div>
 
-      {/* ── Notifications ── */}
-      {success && (
-        <div className="bg-emerald-50 border border-emerald-100 text-emerald-700
-                        text-sm px-4 py-3 rounded-xl mb-4 flex items-center gap-2">
-          <MdCheck className="text-lg flex-shrink-0" /> {success}
-        </div>
-      )}
-      {error && (
-        <div className="bg-rose-50 border border-rose-100 text-rose-600
-                        text-sm px-4 py-3 rounded-xl mb-4 flex items-center gap-2">
-          <MdClose className="text-lg flex-shrink-0" /> {error}
-        </div>
-      )}
 
       {/* ── Avatar + rôle ── */}
       <div className="bg-white rounded-xl border border-slate-200 p-6 mb-4">

@@ -23,13 +23,15 @@ const actionBadge = {
 
 function StatCard({ label, value, sub, icon: Icon, accent }) {
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5 flex items-start gap-4">
-      <div className={`w-11 h-11 rounded-lg flex items-center justify-center flex-shrink-0 ${accent}`}>
+    <div className="bg-white rounded-xl border border-slate-200 p-5 flex items-start gap-4
+                    hover:shadow-md hover:-translate-y-0.5 transition-all duration-200
+                    cursor-default">
+      <div className={`w-11 h-11 rounded-xl flex items-center justify-center
+                       flex-shrink-0 shadow-sm ${accent}`}>
         <Icon className="text-xl text-white" />
       </div>
       <div>
         <p className="text-xs text-slate-400 font-medium uppercase tracking-wide">{label}</p>
-        {/* ✅ value ?? 0 pour éviter undefined */}
         <p className="text-2xl font-bold text-slate-800 mt-0.5">{value ?? 0}</p>
         <p className="text-xs text-slate-400 mt-0.5">{sub}</p>
       </div>

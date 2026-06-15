@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   MdUploadFile, MdInsertDriveFile, MdPictureAsPdf,
@@ -8,6 +8,7 @@ import {
 import { createDocument } from "../api/documents";
 import  { useAuthStore } from "../store/authStore";
 import { useToastStore } from "../store/toastStore";
+import { getCategories } from "../api/documents";
 
 const formatSize = (bytes) => {
   if (bytes < 1024)            return `${bytes} B`;
@@ -43,6 +44,7 @@ const validate = (file) => {
 
 export default function UploadPage() {
   const [files, setFiles]       = useState([]);
+  const [categories, setCategories] = useState([]);
   const [dragging, setDragging] = useState(false);
   const inputRef                = useRef();
   const navigate                = useNavigate();
@@ -74,6 +76,9 @@ export default function UploadPage() {
     setFiles((prev) =>
       prev.map((f) => (f.id === id ? { ...f, [field]: value } : f))
     );
+      useEffect(() => {
+  getCategories().then((res) => setCategories(res.data.results || res.data));
+}, []);
 
   // ── Upload réel vers l'API ─────────────────────────────────────────────
   const uploadFile = async (fileObj) => {
@@ -239,22 +244,17 @@ export default function UploadPage() {
 
                   {!f.error && f.status === "idle" && (
                     <div className="flex gap-2 mt-2">
-                      <input
-                        type="text"
-                        placeholder="Catégorie (ex: RH, Finance...)"
-                        value={f.category}
-                        onChange={(e) => updateField(f.id, "category", e.target.value)}
-                        className="flex-1 border border-slate-200 rounded-lg px-2 py-1.5
-                                   text-xs focus:outline-none focus:ring-1 focus:ring-teal-400"
-                      />
-                      <input
-                        type="text"
-                        placeholder="Tags (ex: contrat, 2024)"
-                        value={f.tags}
-                        onChange={(e) => updateField(f.id, "tags", e.target.value)}
-                        className="flex-1 border border-slate-200 rounded-lg px-2 py-1.5
-                                   text-xs focus:outline-none focus:ring-1 focus:ring-teal-400"
-                      />
+                      <select
+  value={f.category}
+  onChange={(e) => updateField(f.id, "category", e.target.value)}
+  className="flex-1 border border-slate-200 rounded-lg px-2 py-1.5
+             text-xs focus:outline-none focus:ring-1 focus:ring-teal-400 bg-white"
+>
+  <option value="">-- Catégorie --</option>
+  {categories.map((cat) => (
+    <option key={cat.id} value={cat.id}>{cat.name}</option>
+  ))}
+</select>
                     </div>
                   )}
 

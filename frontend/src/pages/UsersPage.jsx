@@ -4,7 +4,7 @@ import {
   MdPerson, MdVisibility, MdClose,
   MdCheck, MdAdminPanelSettings,
 } from "react-icons/md";
-import { getUsers, createUser, updateUser, deleteUser } from "../api/users";
+import { getUsers, updateUser, deleteUser, inviteUser } from "../api/users";
 import { useToastStore } from "../store/toastStore";
 import Pagination from "../components/Pagination";
 
@@ -21,14 +21,101 @@ const statusBadge = {
 
 const PAGE_SIZE = 10;
 
-// ── Modal ajout / édition ──────────────────────────────────────────────────
-function UserModal({ user, onClose, onSave }) {
-  const [form, setForm] = useState(
-    user
-      ? { first_name: user.first_name, last_name: user.last_name,
-          email: user.email, role: user.role, is_active: user.is_active }
-      : { first_name: "", last_name: "", email: "", role: "lecteur", is_active: true }
+// ── Modal invitation ───────────────────────────────────────────────────────
+function InviteModal({ onClose, onSuccess }) {
+  const [form, setForm]       = useState({ email: "", role: "lecteur" });
+  const [loading, setLoading] = useState(false);
+  const { success, error }    = useToastStore();
+
+  const handleInvite = async () => {
+    setLoading(true);
+    try {
+      const res = await inviteUser(form);
+      success(`Invitation envoyée à ${form.email} !`);
+      console.log("🔗 Lien d'invitation (dev) :",
+        `http://localhost:5173/set-password/${res.data.token}`);
+      onSuccess();
+      onClose();
+    } catch (err) {
+      error(err.response?.data?.error || "Erreur lors de l'invitation.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 animate-fade-in-scale">
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-base font-bold text-slate-800">Inviter un utilisateur</h3>
+          <button onClick={onClose}
+            className="text-slate-400 hover:text-slate-600 transition">
+            <MdClose className="text-xl" />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+              Adresse email
+            </label>
+            <input type="email" value={form.email}
+              onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+              placeholder="jean@entreprise.com"
+              className="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2.5
+                         text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+              Rôle
+            </label>
+            <select value={form.role}
+              onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
+              className="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2.5
+                         text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
+            >
+              <option value="admin">Admin</option>
+              <option value="editeur">Éditeur</option>
+              <option value="lecteur">Lecteur</option>
+            </select>
+          </div>
+
+          <div className="bg-amber-50 border border-amber-100 rounded-lg p-3
+                          text-xs text-amber-700">
+            💡 Un email sera envoyé avec un lien pour créer son mot de passe.
+            Le lien expire après 24 heures.
+          </div>
+        </div>
+
+        <div className="flex gap-3 mt-6">
+          <button onClick={onClose}
+            className="flex-1 border border-slate-200 text-slate-600 text-sm py-2.5
+                       rounded-lg hover:bg-slate-50 transition font-medium">
+            Annuler
+          </button>
+          <button
+            onClick={handleInvite}
+            disabled={!form.email || loading}
+            className="flex-1 bg-teal-700 text-white text-sm py-2.5 rounded-lg
+                       hover:bg-teal-800 transition font-medium disabled:opacity-40"
+          >
+            {loading ? "Envoi..." : "Envoyer l'invitation"}
+          </button>
+        </div>
+      </div>
+    </div>
   );
+}
+
+// ── Modal édition ──────────────────────────────────────────────────────────
+function EditModal({ user, onClose, onSave }) {
+  const [form, setForm] = useState({
+    first_name: user.first_name || "",
+    last_name:  user.last_name  || "",
+    role:       user.role       || "lecteur",
+    is_active:  user.is_active,
+  });
   const [loading, setLoading] = useState(false);
 
   const handle = (field, val) => setForm((f) => ({ ...f, [field]: val }));
@@ -44,11 +131,9 @@ function UserModal({ user, onClose, onSave }) {
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 animate-fade-in-scale">
         <div className="flex items-center justify-between mb-5">
-          <h3 className="text-base font-bold text-slate-800">
-            {user ? "Modifier l'utilisateur" : "Nouvel utilisateur"}
-          </h3>
+          <h3 className="text-base font-bold text-slate-800">Modifier l'utilisateur</h3>
           <button onClick={onClose}
             className="text-slate-400 hover:text-slate-600 transition">
             <MdClose className="text-xl" />
@@ -83,15 +168,11 @@ function UserModal({ user, onClose, onSave }) {
 
           <div>
             <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-              Adresse email
+              Email
             </label>
-            <input type="email" value={form.email}
-              onChange={(e) => handle("email", e.target.value)}
-              placeholder="jean@entreprise.com"
-              disabled={!!user}
+            <input type="email" value={user.email} disabled
               className="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2.5
-                         text-sm focus:outline-none focus:ring-2 focus:ring-teal-500
-                         disabled:bg-slate-50 disabled:text-slate-400"
+                         text-sm bg-slate-50 text-slate-400"
             />
           </div>
 
@@ -134,13 +215,13 @@ function UserModal({ user, onClose, onSave }) {
           </button>
           <button
             onClick={handleSave}
-            disabled={!form.email || loading}
+            disabled={loading}
             className="flex-1 bg-teal-700 text-white text-sm py-2.5 rounded-lg
                        hover:bg-teal-800 transition font-medium flex items-center
                        justify-center gap-2 disabled:opacity-40"
           >
             <MdCheck className="text-lg" />
-            {loading ? "Enregistrement..." : user ? "Enregistrer" : "Créer"}
+            {loading ? "Enregistrement..." : "Enregistrer"}
           </button>
         </div>
       </div>
@@ -154,7 +235,8 @@ export default function UsersPage() {
   const [loading, setLoading]       = useState(true);
   const [search, setSearch]         = useState("");
   const [filterRole, setFilterRole] = useState("Tous");
-  const [modal, setModal]           = useState(null);
+  const [editModal, setEditModal]   = useState(null);
+  const [showInvite, setShowInvite] = useState(false);
   const [deleteId, setDeleteId]     = useState(null);
   const [page, setPage]             = useState(1);
   const [totalItems, setTotalItems] = useState(0);
@@ -162,7 +244,7 @@ export default function UsersPage() {
   const { success, error: toastError } = useToastStore();
 
   // ── Chargement ────────────────────────────────────────────────────────
-  useEffect(() => {
+  const loadUsers = () => {
     setLoading(true);
     getUsers({ page })
       .then((res) => {
@@ -179,7 +261,9 @@ export default function UsersPage() {
       })
       .catch(() => toastError("Erreur chargement utilisateurs"))
       .finally(() => setLoading(false));
-  }, [page]);
+  };
+
+  useEffect(() => { loadUsers(); }, [page]);
 
   // ── Filtrage local ────────────────────────────────────────────────────
   const filtered = users.filter((u) => {
@@ -189,29 +273,19 @@ export default function UsersPage() {
     return matchSearch && matchRole;
   });
 
-  // ── CRUD ──────────────────────────────────────────────────────────────
-  const saveUser = async (form) => {
+  // ── Édition ───────────────────────────────────────────────────────────
+  const handleEdit = async (form) => {
     try {
-      if (modal === "add") {
-        const res = await createUser({
-          ...form,
-          username: form.email,
-          password: "archiflow2024",
-        });
-        setUsers((prev) => [...prev, res.data]);
-        setTotalItems((n) => n + 1);
-        success(`Utilisateur créé ! Mot de passe par défaut : archiflow2024`);
-      } else {
-        const res = await updateUser(modal.id, form);
-        setUsers((prev) => prev.map((u) => (u.id === modal.id ? res.data : u)));
-        success("Utilisateur mis à jour avec succès.");
-      }
-      setModal(null);
+      const res = await updateUser(editModal.id, form);
+      setUsers((prev) => prev.map((u) => (u.id === editModal.id ? res.data : u)));
+      setEditModal(null);
+      success("Utilisateur mis à jour avec succès.");
     } catch {
-      toastError("Erreur lors de la sauvegarde.");
+      toastError("Erreur lors de la mise à jour.");
     }
   };
 
+  // ── Suppression ───────────────────────────────────────────────────────
   const handleDelete = async () => {
     try {
       await deleteUser(deleteId);
@@ -242,11 +316,11 @@ export default function UsersPage() {
           </p>
         </div>
         <button
-          onClick={() => setModal("add")}
+          onClick={() => setShowInvite(true)}
           className="flex items-center gap-2 bg-teal-700 hover:bg-teal-800
                      text-white text-sm px-4 py-2 rounded-lg transition font-medium"
         >
-          <MdPersonAdd className="text-lg" /> Nouvel utilisateur
+          <MdPersonAdd className="text-lg" /> Inviter un utilisateur
         </button>
       </div>
 
@@ -259,7 +333,9 @@ export default function UsersPage() {
           { label: "Actifs",   value: actifs,   icon: MdPerson,             cls: "bg-teal-600"  },
         ].map(({ label, value, icon: Icon, cls }) => (
           <div key={label}
-            className="bg-white rounded-xl border border-slate-200 p-4 flex items-center gap-3">
+            className="bg-white rounded-xl border border-slate-200 p-4
+                       flex items-center gap-3 hover:shadow-md hover:-translate-y-0.5
+                       transition-all duration-200">
             <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${cls}`}>
               <Icon className="text-white text-lg" />
             </div>
@@ -274,7 +350,8 @@ export default function UsersPage() {
       {/* ── Filtres ── */}
       <div className="bg-white rounded-xl border border-slate-200 p-4 mb-4 flex gap-3">
         <div className="relative flex-1">
-          <MdSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg" />
+          <MdSearch className="absolute left-3 top-1/2 -translate-y-1/2
+                               text-slate-400 text-lg" />
           <input type="text" placeholder="Rechercher un utilisateur..."
             value={search} onChange={(e) => setSearch(e.target.value)}
             className="w-full border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm
@@ -373,7 +450,7 @@ export default function UsersPage() {
 
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      <button onClick={() => setModal(u)}
+                      <button onClick={() => setEditModal(u)}
                         className="text-slate-400 hover:text-teal-600 transition"
                         title="Modifier">
                         <MdEdit className="text-lg" />
@@ -392,7 +469,6 @@ export default function UsersPage() {
           </tbody>
         </table>
 
-        {/* Pagination */}
         <Pagination
           page={page}
           totalPages={totalPages}
@@ -402,19 +478,28 @@ export default function UsersPage() {
         />
       </div>
 
-      {/* ── Modal ajout / édition ── */}
-      {modal && (
-        <UserModal
-          user={modal === "add" ? null : modal}
-          onClose={() => setModal(null)}
-          onSave={saveUser}
+      {/* ── Modal invitation ── */}
+      {showInvite && (
+        <InviteModal
+          onClose={() => setShowInvite(false)}
+          onSuccess={loadUsers}
+        />
+      )}
+
+      {/* ── Modal édition ── */}
+      {editModal && (
+        <EditModal
+          user={editModal}
+          onClose={() => setEditModal(null)}
+          onSave={handleEdit}
         />
       )}
 
       {/* ── Confirmation suppression ── */}
       {deleteId && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm
+                          animate-fade-in-scale">
             <h3 className="text-base font-bold text-slate-800 mb-2">
               Supprimer l'utilisateur ?
             </h3>

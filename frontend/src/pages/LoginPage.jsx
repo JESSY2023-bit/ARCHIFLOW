@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
 import { MdArchive, MdEmail, MdLock } from "react-icons/md";
+import tenant from "../config/tenant";
 
 export default function LoginPage() {
   const [email, setEmail]       = useState("");
@@ -30,17 +31,16 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
 
         {/* Logo */}
-        <div className="flex flex-col items-center mb-8">
-          <div className="w-14 h-14 bg-zinc-800 rounded-2xl flex items-center
-                          justify-center mb-3 shadow-lg">
-            <MdArchive className="text-zinc-200 text-3xl" />
-          </div>
-          <h1 className="text-2xl font-bold text-zinc-800 tracking-tight">ArchiFlow</h1>
-          <p className="text-zinc-500 text-sm mt-1">Système de gestion des archives</p>
-        </div>
+<div style={{ backgroundColor: "var(--color-accent)" }}
+  className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3 shadow-lg">
+  <span className="text-2xl">{tenant.logoIcon}</span>
+</div>
+<h1 className="text-2xl font-bold text-slate-800 tracking-tight">{tenant.name}</h1>
+<p className="text-slate-500 text-sm mt-1">{tenant.tagline}</p>
+
 
         {/* Carte */}
-        <div className="bg-white rounded-2xl shadow-sm border border-zinc-200 p-8">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 animate-fade-in-scale">
           <h2 className="text-base font-semibold text-zinc-700 mb-6">
             Connexion à votre espace
           </h2>
@@ -93,20 +93,20 @@ export default function LoginPage() {
             </div>
 
             <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-zinc-800 text-white py-2.5 rounded-lg text-sm
-                         font-semibold hover:bg-zinc-700 transition disabled:opacity-50 mt-2"
-            >
-              {loading ? "Connexion en cours..." : "Se connecter"}
-            </button>
+  type="submit"
+  style={{ backgroundColor: "var(--color-primary)" }}
+  className="w-full text-white py-2.5 rounded-lg text-sm font-semibold
+             hover:opacity-90 transition disabled:opacity-50 mt-2"
+>
+  {loading ? "Connexion en cours..." : "Se connecter"}
+</button>
 
           </form>
         </div>
 
-        <p className="text-center text-xs text-zinc-400 mt-6">
-          ArchiFlow © {new Date().getFullYear()} — Accès réservé
-        </p>
+        <p className="text-center text-xs text-slate-400 mt-6">
+  {tenant.footerText}
+</p>
       </div>
     </div>
   );
