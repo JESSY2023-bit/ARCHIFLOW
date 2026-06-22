@@ -1,17 +1,18 @@
-import { useState, useEffect } from "react";
+import { createElement, useState, useEffect, useCallback } from "react";
 import {
   MdPersonAdd, MdSearch, MdEdit, MdDelete,
   MdPerson, MdVisibility, MdClose,
   MdCheck, MdAdminPanelSettings,
 } from "react-icons/md";
+import { useTranslation } from "react-i18next";
 import { getUsers, updateUser, deleteUser, inviteUser } from "../api/users";
 import { useToastStore } from "../store/toastStore";
 import Pagination from "../components/Pagination";
 
 const roleBadge = {
-  admin:   { label: "Admin",   cls: "bg-teal-50 text-teal-700 border border-teal-100",     icon: MdAdminPanelSettings },
-  editeur: { label: "Éditeur", cls: "bg-slate-100 text-slate-700 border border-slate-200", icon: MdEdit               },
-  lecteur: { label: "Lecteur", cls: "bg-amber-50 text-amber-700 border border-amber-100",  icon: MdVisibility         },
+  admin:   { labelKey: "roles.admin",   cls: "bg-teal-50 text-teal-700 border border-teal-100",     icon: MdAdminPanelSettings },
+  editeur: { labelKey: "roles.editeur", cls: "bg-slate-100 text-slate-700 border border-slate-200", icon: MdEdit               },
+  lecteur: { labelKey: "roles.lecteur", cls: "bg-amber-50 text-amber-700 border border-amber-100",  icon: MdVisibility         },
 };
 
 const statusBadge = {
@@ -23,6 +24,7 @@ const PAGE_SIZE = 10;
 
 // ── Modal invitation ───────────────────────────────────────────────────────
 function InviteModal({ onClose, onSuccess }) {
+  const { t } = useTranslation();
   const [form, setForm]       = useState({ email: "", role: "lecteur" });
   const [loading, setLoading] = useState(false);
   const { success, error }    = useToastStore();
@@ -31,13 +33,13 @@ function InviteModal({ onClose, onSuccess }) {
     setLoading(true);
     try {
       const res = await inviteUser(form);
-      success(`Invitation envoyée à ${form.email} !`);
+      success(t("users.invite_success", { email: form.email }));
       console.log("🔗 Lien d'invitation (dev) :",
         `http://localhost:5173/set-password/${res.data.token}`);
       onSuccess();
       onClose();
     } catch (err) {
-      error(err.response?.data?.error || "Erreur lors de l'invitation.");
+      error(err.response?.data?.error || t("users.invite_error"));
     } finally {
       setLoading(false);
     }
@@ -47,7 +49,7 @@ function InviteModal({ onClose, onSuccess }) {
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 animate-fade-in-scale">
         <div className="flex items-center justify-between mb-5">
-          <h3 className="text-base font-bold text-slate-800">Inviter un utilisateur</h3>
+          <h3 className="text-base font-bold text-slate-800">{t("users.invite_title")}</h3>
           <button onClick={onClose}
             className="text-slate-400 hover:text-slate-600 transition">
             <MdClose className="text-xl" />
@@ -57,7 +59,7 @@ function InviteModal({ onClose, onSuccess }) {
         <div className="space-y-4">
           <div>
             <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-              Adresse email
+              {t("users.invite_email")}
             </label>
             <input type="email" value={form.email}
               onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
@@ -68,23 +70,22 @@ function InviteModal({ onClose, onSuccess }) {
           </div>
           <div>
             <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-              Rôle
+              {t("users.invite_role")}
             </label>
             <select value={form.role}
               onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
               className="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2.5
                          text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
             >
-              <option value="admin">Admin</option>
-              <option value="editeur">Éditeur</option>
-              <option value="lecteur">Lecteur</option>
+              <option value="admin">{t("roles.admin")}</option>
+              <option value="editeur">{t("roles.editeur")}</option>
+              <option value="lecteur">{t("roles.lecteur")}</option>
             </select>
           </div>
 
           <div className="bg-amber-50 border border-amber-100 rounded-lg p-3
                           text-xs text-amber-700">
-            💡 Un email sera envoyé avec un lien pour créer son mot de passe.
-            Le lien expire après 24 heures.
+            {t("users.invite_info")}
           </div>
         </div>
 
@@ -92,7 +93,7 @@ function InviteModal({ onClose, onSuccess }) {
           <button onClick={onClose}
             className="flex-1 border border-slate-200 text-slate-600 text-sm py-2.5
                        rounded-lg hover:bg-slate-50 transition font-medium">
-            Annuler
+            {t("actions.cancel")}
           </button>
           <button
             onClick={handleInvite}
@@ -100,7 +101,7 @@ function InviteModal({ onClose, onSuccess }) {
             className="flex-1 bg-teal-700 text-white text-sm py-2.5 rounded-lg
                        hover:bg-teal-800 transition font-medium disabled:opacity-40"
           >
-            {loading ? "Envoi..." : "Envoyer l'invitation"}
+            {loading ? t("users.invite_sending") : t("users.invite_send")}
           </button>
         </div>
       </div>
@@ -110,6 +111,7 @@ function InviteModal({ onClose, onSuccess }) {
 
 // ── Modal édition ──────────────────────────────────────────────────────────
 function EditModal({ user, onClose, onSave }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState({
     first_name: user.first_name || "",
     last_name:  user.last_name  || "",
@@ -133,7 +135,7 @@ function EditModal({ user, onClose, onSave }) {
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 animate-fade-in-scale">
         <div className="flex items-center justify-between mb-5">
-          <h3 className="text-base font-bold text-slate-800">Modifier l'utilisateur</h3>
+          <h3 className="text-base font-bold text-slate-800">{t("users.edit_title")}</h3>
           <button onClick={onClose}
             className="text-slate-400 hover:text-slate-600 transition">
             <MdClose className="text-xl" />
@@ -144,7 +146,7 @@ function EditModal({ user, onClose, onSave }) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                Prénom
+                {t("users.first_name")}
               </label>
               <input type="text" value={form.first_name}
                 onChange={(e) => handle("first_name", e.target.value)}
@@ -155,7 +157,7 @@ function EditModal({ user, onClose, onSave }) {
             </div>
             <div>
               <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                Nom
+                {t("users.last_name")}
               </label>
               <input type="text" value={form.last_name}
                 onChange={(e) => handle("last_name", e.target.value)}
@@ -168,7 +170,7 @@ function EditModal({ user, onClose, onSave }) {
 
           <div>
             <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-              Email
+              {t("profile.email")}
             </label>
             <input type="email" value={user.email} disabled
               className="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2.5
@@ -179,29 +181,29 @@ function EditModal({ user, onClose, onSave }) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                Rôle
+                {t("users.role")}
               </label>
               <select value={form.role}
                 onChange={(e) => handle("role", e.target.value)}
                 className="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2.5
                            text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
               >
-                <option value="admin">Admin</option>
-                <option value="editeur">Éditeur</option>
-                <option value="lecteur">Lecteur</option>
+                <option value="admin">{t("roles.admin")}</option>
+                <option value="editeur">{t("roles.editeur")}</option>
+                <option value="lecteur">{t("roles.lecteur")}</option>
               </select>
             </div>
             <div>
               <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                Statut
+                {t("users.status")}
               </label>
               <select value={form.is_active ? "actif" : "inactif"}
                 onChange={(e) => handle("is_active", e.target.value === "actif")}
                 className="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2.5
                            text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
               >
-                <option value="actif">Actif</option>
-                <option value="inactif">Inactif</option>
+                <option value="actif">{t("users.active_s")}</option>
+                <option value="inactif">{t("users.inactive")}</option>
               </select>
             </div>
           </div>
@@ -211,7 +213,7 @@ function EditModal({ user, onClose, onSave }) {
           <button onClick={onClose}
             className="flex-1 border border-slate-200 text-slate-600 text-sm py-2.5
                        rounded-lg hover:bg-slate-50 transition font-medium">
-            Annuler
+            {t("actions.cancel")}
           </button>
           <button
             onClick={handleSave}
@@ -221,7 +223,7 @@ function EditModal({ user, onClose, onSave }) {
                        justify-center gap-2 disabled:opacity-40"
           >
             <MdCheck className="text-lg" />
-            {loading ? "Enregistrement..." : "Enregistrer"}
+            {loading ? t("profile.saving") : t("actions.save")}
           </button>
         </div>
       </div>
@@ -231,6 +233,7 @@ function EditModal({ user, onClose, onSave }) {
 
 // ── Page principale ────────────────────────────────────────────────────────
 export default function UsersPage() {
+  const { t, i18n } = useTranslation();
   const [users, setUsers]           = useState([]);
   const [loading, setLoading]       = useState(true);
   const [search, setSearch]         = useState("");
@@ -244,7 +247,7 @@ export default function UsersPage() {
   const { success, error: toastError } = useToastStore();
 
   // ── Chargement ────────────────────────────────────────────────────────
-  const loadUsers = () => {
+  const loadUsers = useCallback(() => {
     setLoading(true);
     getUsers({ page })
       .then((res) => {
@@ -259,11 +262,14 @@ export default function UsersPage() {
           setTotalPages(1);
         }
       })
-      .catch(() => toastError("Erreur chargement utilisateurs"))
+      .catch(() => toastError(t("users.error_load")))
       .finally(() => setLoading(false));
-  };
+  }, [page, t, toastError]);
 
-  useEffect(() => { loadUsers(); }, [page]);
+  useEffect(() => {
+    const timeoutId = window.setTimeout(loadUsers, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [loadUsers]);
 
   // ── Filtrage local ────────────────────────────────────────────────────
   const filtered = users.filter((u) => {
@@ -279,9 +285,9 @@ export default function UsersPage() {
       const res = await updateUser(editModal.id, form);
       setUsers((prev) => prev.map((u) => (u.id === editModal.id ? res.data : u)));
       setEditModal(null);
-      success("Utilisateur mis à jour avec succès.");
+      success(t("users.updated"));
     } catch {
-      toastError("Erreur lors de la mise à jour.");
+      toastError(t("users.error_update"));
     }
   };
 
@@ -292,9 +298,9 @@ export default function UsersPage() {
       setUsers((prev) => prev.filter((u) => u.id !== deleteId));
       setTotalItems((n) => n - 1);
       setDeleteId(null);
-      success("Utilisateur supprimé.");
+      success(t("users.deleted"));
     } catch {
-      toastError("Erreur lors de la suppression.");
+      toastError(t("users.error_delete"));
     }
   };
 
@@ -310,9 +316,9 @@ export default function UsersPage() {
       {/* ── En-tête ── */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-xl font-bold text-slate-800">Utilisateurs</h2>
+          <h2 className="text-xl font-bold text-slate-800">{t("users.title")}</h2>
           <p className="text-sm text-slate-400 mt-0.5">
-            {totalItems} compte{totalItems > 1 ? "s" : ""} · {actifs} actif{actifs > 1 ? "s" : ""}
+            {totalItems} {totalItems > 1 ? t("users.accounts") : t("users.account")} · {actifs} {actifs > 1 ? t("users.active") : t("users.active_s").toLowerCase()}
           </p>
         </div>
         <button
@@ -320,24 +326,24 @@ export default function UsersPage() {
           className="flex items-center gap-2 bg-teal-700 hover:bg-teal-800
                      text-white text-sm px-4 py-2 rounded-lg transition font-medium"
         >
-          <MdPersonAdd className="text-lg" /> Inviter un utilisateur
+          <MdPersonAdd className="text-lg" /> {t("users.invite")}
         </button>
       </div>
 
       {/* ── Cartes stats ── */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-5">
         {[
-          { label: "Admins",   value: admins,   icon: MdAdminPanelSettings, cls: "bg-teal-700"  },
-          { label: "Éditeurs", value: editeurs, icon: MdEdit,               cls: "bg-slate-600" },
-          { label: "Lecteurs", value: lecteurs, icon: MdVisibility,         cls: "bg-slate-500" },
-          { label: "Actifs",   value: actifs,   icon: MdPerson,             cls: "bg-teal-600"  },
-        ].map(({ label, value, icon: Icon, cls }) => (
+          { label: t("users.admins"),   value: admins,   icon: MdAdminPanelSettings, cls: "bg-teal-700"  },
+          { label: t("users.editors"), value: editeurs, icon: MdEdit,               cls: "bg-slate-600" },
+          { label: t("users.readers"), value: lecteurs, icon: MdVisibility,         cls: "bg-slate-500" },
+          { label: t("users.active"),   value: actifs,   icon: MdPerson,             cls: "bg-teal-600"  },
+        ].map(({ label, value, icon, cls }) => (
           <div key={label}
             className="bg-white rounded-xl border border-slate-200 p-4
                        flex items-center gap-3 hover:shadow-md hover:-translate-y-0.5
                        transition-all duration-200">
             <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${cls}`}>
-              <Icon className="text-white text-lg" />
+              {createElement(icon, { className: "text-white text-lg" })}
             </div>
             <div>
               <p className="text-xl font-bold text-slate-800">{value}</p>
@@ -352,7 +358,7 @@ export default function UsersPage() {
         <div className="relative flex-1">
           <MdSearch className="absolute left-3 top-1/2 -translate-y-1/2
                                text-slate-400 text-lg" />
-          <input type="text" placeholder="Rechercher un utilisateur..."
+          <input type="text" placeholder={t("users.search")}
             value={search} onChange={(e) => setSearch(e.target.value)}
             className="w-full border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm
                        focus:outline-none focus:ring-2 focus:ring-teal-500"
@@ -364,7 +370,7 @@ export default function UsersPage() {
         >
           {["Tous", "admin", "editeur", "lecteur"].map((r) => (
             <option key={r} value={r}>
-              {r === "Tous" ? "Tous les rôles" : r.charAt(0).toUpperCase() + r.slice(1)}
+              {r === "Tous" ? t("users.all_roles") : t(`roles.${r}`)}
             </option>
           ))}
         </select>
@@ -375,7 +381,7 @@ export default function UsersPage() {
         <table className="w-full text-sm">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
-              {["Utilisateur", "Rôle", "Statut", "Membre depuis", "Actions"].map((h) => (
+              {[t("users.user"), t("users.role"), t("users.status"), t("users.since"), t("users.actions")].map((h) => (
                 <th key={h}
                   className="text-left px-4 py-3 text-xs font-semibold text-slate-500
                              uppercase tracking-wide">
@@ -392,7 +398,7 @@ export default function UsersPage() {
                   <div className="flex items-center justify-center gap-2">
                     <div className="w-4 h-4 border-2 border-teal-500 border-t-transparent
                                     rounded-full animate-spin" />
-                    Chargement...
+                    {t("actions.loading")}
                   </div>
                 </td>
               </tr>
@@ -402,14 +408,13 @@ export default function UsersPage() {
               <tr>
                 <td colSpan={5} className="text-center py-14 text-slate-400">
                   <MdPerson className="text-4xl mx-auto mb-2 text-slate-300" />
-                  Aucun utilisateur trouvé.
+                  {t("users.no_users")}
                 </td>
               </tr>
             )}
 
             {!loading && filtered.map((u) => {
               const role     = roleBadge[u.role] || roleBadge["lecteur"];
-              const RoleIcon = role.icon;
               const status   = u.is_active ? "actif" : "inactif";
               return (
                 <tr key={u.id} className="hover:bg-slate-50 transition">
@@ -432,32 +437,32 @@ export default function UsersPage() {
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center gap-1 text-xs font-medium
                                       px-2 py-1 rounded-full ${role.cls}`}>
-                      <RoleIcon className="text-sm" />
-                      {role.label}
+                      {createElement(role.icon, { className: "text-sm" })}
+                      {t(role.labelKey)}
                     </span>
                   </td>
 
                   <td className="px-4 py-3">
                     <span className={`text-xs font-medium px-2 py-1 rounded-full
                                       ${statusBadge[status]}`}>
-                      {status.charAt(0).toUpperCase() + status.slice(1)}
+                      {u.is_active ? t("users.active_s") : t("users.inactive")}
                     </span>
                   </td>
 
                   <td className="px-4 py-3 text-slate-400 text-xs">
-                    {new Date(u.date_joined).toLocaleDateString("fr-FR")}
+                    {new Date(u.date_joined).toLocaleDateString(i18n.language === "en" ? "en-US" : "fr-FR")}
                   </td>
 
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <button onClick={() => setEditModal(u)}
                         className="text-slate-400 hover:text-teal-600 transition"
-                        title="Modifier">
+                        title={t("actions.edit")}>
                         <MdEdit className="text-lg" />
                       </button>
                       <button onClick={() => setDeleteId(u.id)}
                         className="text-slate-400 hover:text-rose-500 transition"
-                        title="Supprimer">
+                        title={t("actions.delete")}>
                         <MdDelete className="text-lg" />
                       </button>
                     </div>
@@ -501,21 +506,21 @@ export default function UsersPage() {
           <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm
                           animate-fade-in-scale">
             <h3 className="text-base font-bold text-slate-800 mb-2">
-              Supprimer l'utilisateur ?
+              {t("users.delete_title")}
             </h3>
             <p className="text-sm text-slate-500 mb-5">
-              Cette action est irréversible.
+              {t("users.delete_info")}
             </p>
             <div className="flex gap-3">
               <button onClick={() => setDeleteId(null)}
                 className="flex-1 border border-slate-200 text-slate-600 text-sm py-2.5
                            rounded-lg hover:bg-slate-50 transition font-medium">
-                Annuler
+                {t("actions.cancel")}
               </button>
               <button onClick={handleDelete}
                 className="flex-1 bg-rose-500 text-white text-sm py-2.5 rounded-lg
                            hover:bg-rose-600 transition font-medium">
-                Supprimer
+                {t("actions.delete")}
               </button>
             </div>
           </div>

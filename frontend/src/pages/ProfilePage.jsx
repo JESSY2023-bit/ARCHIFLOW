@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { useAuthStore } from "../store/authStore";
 import api from "../api/axios";
+import { useTranslation } from "react-i18next";
 import {
   MdPerson, MdEmail, MdLock, MdEdit,
-  MdCheck, MdClose, MdShield,
+  MdShield,
 } from "react-icons/md";
 import { useToastStore } from "../store/toastStore";
 
 export default function ProfilePage() {
-  const { user, logout } = useAuthStore();
+  const { t } = useTranslation();
+  const { user } = useAuthStore();
 
   // ── États ─────────────────────────────────────────────────────────────
   const [editInfo, setEditInfo]   = useState(false);
@@ -39,9 +41,9 @@ export default function ProfilePage() {
         user: { ...s.user, ...infoForm },
       }));
       setEditInfo(false);
-      success("Informations mises à jour ✓");
+      success(t("profile.updated"));
     } catch {
-      error("Erreur lors de la mise à jour.");
+      error(t("profile.error_update"));
     } finally {
       setLoading(false);
     }
@@ -50,11 +52,11 @@ export default function ProfilePage() {
   // ── Changer le mot de passe ───────────────────────────────────────────
   const handleChangePwd = async () => {
     if (pwdForm.new_password !== pwdForm.confirm) {
-      error("Les mots de passe ne correspondent pas.");
+      error(t("profile.pwd_mismatch"));
       return;
     }
     if (pwdForm.new_password.length < 6) {
-      error("Le mot de passe doit contenir au moins 6 caractères.");
+      error(t("profile.pwd_min"));
       return;
     }
     setLoading(true);
@@ -65,9 +67,9 @@ export default function ProfilePage() {
       });
       setPwdForm({ old_password: "", new_password: "", confirm: "" });
       setEditPwd(false);
-      success("Mot de passe modifié avec succès ✓");
+      success(t("profile.pwd_changed"));
     } catch (err) {
-      const msg = err.response?.data?.error || "Mot de passe actuel incorrect.";
+      const msg = err.response?.data?.error || t("profile.pwd_current_invalid");
       error(msg);
     } finally {
       setLoading(false);
@@ -85,9 +87,9 @@ export default function ProfilePage() {
 
       {/* ── Titre ── */}
       <div className="mb-6">
-        <h2 className="text-xl font-bold text-slate-800">Mon profil</h2>
+        <h2 className="text-xl font-bold text-slate-800">{t("profile.title")}</h2>
         <p className="text-sm text-slate-400 mt-0.5">
-          Gérez vos informations personnelles et votre mot de passe
+          {t("profile.subtitle")}
         </p>
       </div>
 
@@ -109,7 +111,7 @@ export default function ProfilePage() {
             <span className={`inline-block mt-1.5 text-xs font-medium px-2.5 py-1
                               rounded-full ${roleBadge[user?.role] || roleBadge["lecteur"]}`}>
               <MdShield className="inline mr-1 text-sm" />
-              {user?.role?.charAt(0).toUpperCase() + user?.role?.slice(1) || "—"}
+              {user?.role ? t(`roles.${user.role}`) : "—"}
             </span>
           </div>
         </div>
@@ -120,7 +122,7 @@ export default function ProfilePage() {
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
             <MdPerson className="text-teal-600 text-lg" />
-            Informations personnelles
+            {t("profile.personal_info")}
           </h3>
           {!editInfo && (
             <button
@@ -129,7 +131,7 @@ export default function ProfilePage() {
                          hover:text-teal-600 transition border border-slate-200
                          px-3 py-1.5 rounded-lg hover:border-teal-200"
             >
-              <MdEdit className="text-sm" /> Modifier
+              <MdEdit className="text-sm" /> {t("profile.edit")}
             </button>
           )}
         </div>
@@ -138,7 +140,7 @@ export default function ProfilePage() {
           <div className="space-y-3">
             <div className="flex items-center justify-between py-2 border-b border-slate-100">
               <span className="text-xs text-slate-400 uppercase tracking-wide font-medium">
-                Prénom
+                {t("profile.first_name")}
               </span>
               <span className="text-sm text-slate-700 font-medium">
                 {user?.first_name || "—"}
@@ -146,7 +148,7 @@ export default function ProfilePage() {
             </div>
             <div className="flex items-center justify-between py-2 border-b border-slate-100">
               <span className="text-xs text-slate-400 uppercase tracking-wide font-medium">
-                Nom
+                {t("profile.last_name")}
               </span>
               <span className="text-sm text-slate-700 font-medium">
                 {user?.last_name || "—"}
@@ -154,7 +156,7 @@ export default function ProfilePage() {
             </div>
             <div className="flex items-center justify-between py-2">
               <span className="text-xs text-slate-400 uppercase tracking-wide font-medium">
-                Email
+                {t("profile.email")}
               </span>
               <span className="text-sm text-slate-700 font-medium flex items-center gap-1">
                 <MdEmail className="text-slate-400" /> {user?.email}
@@ -166,7 +168,7 @@ export default function ProfilePage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                  Prénom
+                  {t("profile.first_name")}
                 </label>
                 <input
                   type="text"
@@ -178,7 +180,7 @@ export default function ProfilePage() {
               </div>
               <div>
                 <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                  Nom
+                  {t("profile.last_name")}
                 </label>
                 <input
                   type="text"
@@ -195,7 +197,7 @@ export default function ProfilePage() {
                 className="flex-1 border border-slate-200 text-slate-600 text-sm py-2.5
                            rounded-lg hover:bg-slate-50 transition font-medium"
               >
-                Annuler
+                {t("profile.cancel")}
               </button>
               <button
                 onClick={handleSaveInfo}
@@ -203,7 +205,7 @@ export default function ProfilePage() {
                 className="flex-1 bg-teal-700 text-white text-sm py-2.5 rounded-lg
                            hover:bg-teal-800 transition font-medium disabled:opacity-50"
               >
-                {loading ? "Enregistrement..." : "Enregistrer"}
+                {loading ? t("profile.saving") : t("profile.save")}
               </button>
             </div>
           </div>
@@ -215,7 +217,7 @@ export default function ProfilePage() {
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
             <MdLock className="text-teal-600 text-lg" />
-            Mot de passe
+            {t("profile.password")}
           </h3>
           {!editPwd && (
             <button
@@ -224,20 +226,20 @@ export default function ProfilePage() {
                          hover:text-teal-600 transition border border-slate-200
                          px-3 py-1.5 rounded-lg hover:border-teal-200"
             >
-              <MdEdit className="text-sm" /> Modifier
+              <MdEdit className="text-sm" /> {t("profile.edit")}
             </button>
           )}
         </div>
 
         {!editPwd ? (
           <p className="text-sm text-slate-400">
-            Votre mot de passe est masqué. Cliquez sur "Modifier" pour le changer.
+            {t("profile.password_hidden")}
           </p>
         ) : (
           <div className="space-y-4">
             <div>
               <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                Mot de passe actuel
+                {t("profile.current_pwd")}
               </label>
               <input
                 type="password"
@@ -250,7 +252,7 @@ export default function ProfilePage() {
             </div>
             <div>
               <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                Nouveau mot de passe
+                {t("profile.new_pwd")}
               </label>
               <input
                 type="password"
@@ -263,7 +265,7 @@ export default function ProfilePage() {
             </div>
             <div>
               <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                Confirmer le mot de passe
+                {t("profile.confirm_pwd")}
               </label>
               <input
                 type="password"
@@ -279,7 +281,7 @@ export default function ProfilePage() {
               />
               {pwdForm.confirm && pwdForm.new_password !== pwdForm.confirm && (
                 <p className="text-xs text-rose-500 mt-1">
-                  Les mots de passe ne correspondent pas.
+                  {t("profile.pwd_mismatch")}
                 </p>
               )}
             </div>
@@ -292,7 +294,7 @@ export default function ProfilePage() {
                 className="flex-1 border border-slate-200 text-slate-600 text-sm py-2.5
                            rounded-lg hover:bg-slate-50 transition font-medium"
               >
-                Annuler
+                {t("profile.cancel")}
               </button>
               <button
                 onClick={handleChangePwd}
@@ -300,7 +302,7 @@ export default function ProfilePage() {
                 className="flex-1 bg-teal-700 text-white text-sm py-2.5 rounded-lg
                            hover:bg-teal-800 transition font-medium disabled:opacity-50"
               >
-                {loading ? "Modification..." : "Changer le mot de passe"}
+                {loading ? t("profile.changing_pwd") : t("profile.change_pwd")}
               </button>
             </div>
           </div>

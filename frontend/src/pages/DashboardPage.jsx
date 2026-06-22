@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
+import { createElement, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -21,14 +22,14 @@ const actionBadge = {
   "Restauré":   "bg-sky-50 text-sky-600 border border-sky-100",
 };
 
-function StatCard({ label, value, sub, icon: Icon, accent }) {
+function StatCard({ label, value, sub, icon, accent }) {
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-5 flex items-start gap-4
                     hover:shadow-md hover:-translate-y-0.5 transition-all duration-200
                     cursor-default">
       <div className={`w-11 h-11 rounded-xl flex items-center justify-center
                        flex-shrink-0 shadow-sm ${accent}`}>
-        <Icon className="text-xl text-white" />
+        {createElement(icon, { className: "text-xl text-white" })}
       </div>
       <div>
         <p className="text-xs text-slate-400 font-medium uppercase tracking-wide">{label}</p>
@@ -40,6 +41,7 @@ function StatCard({ label, value, sub, icon: Icon, accent }) {
 }
 
 export default function DashboardPage() {
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [docs, setDocs]   = useState([]);
   const [users, setUsers] = useState([]);
@@ -59,7 +61,7 @@ export default function DashboardPage() {
     })
     .catch(() => {})
     .finally(() => setLoading(false));
-}, []);
+}, [user?.role]);
 
   // ── Stats calculées depuis les vraies données ──────────────────────────
   const totalDocs  = docs.length;
@@ -77,7 +79,7 @@ export default function DashboardPage() {
   docs.forEach((d) => {
     const name = d.author?.first_name
       ? `${d.author.first_name}`
-      : d.author?.email?.split("@")[0] || "Inconnu";
+      : d.author?.email?.split("@")[0] || t("dashboard.unknown");
     authorMap[name] = (authorMap[name] || 0) + 1;
   });
   const byAuthor = Object.entries(authorMap).map(([name, value]) => ({ name, value }));
@@ -87,34 +89,22 @@ export default function DashboardPage() {
   const now = new Date();
   for (let i = 5; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const key = d.toLocaleDateString("fr-FR", { month: "short" });
+    const key = d.toLocaleDateString(i18n.language === "en" ? "en-US" : "fr-FR", { month: "short" });
     monthMap[key] = 0;
   }
   docs.forEach((d) => {
     const date = new Date(d.created_at);
-    const key  = date.toLocaleDateString("fr-FR", { month: "short" });
+    const key  = date.toLocaleDateString(i18n.language === "en" ? "en-US" : "fr-FR", { month: "short" });
     if (key in monthMap) monthMap[key]++;
   });
   const uploadsByMonth = Object.entries(monthMap).map(([mois, documents]) => ({ mois, documents }));
-
-  // Activité récente (5 derniers docs)
-  const recentActivity = [...docs]
-    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-    .slice(0, 5)
-    .map((d) => ({
-      id:     d.id,
-      action: "Ajout",
-      doc:    d.name,
-      user:   d.author?.first_name || d.author?.email?.split("@")[0] || "—",
-      time:   new Date(d.created_at).toLocaleDateString("fr-FR"),
-    }));
 
   if (loading) return (
     <div className="flex items-center justify-center py-24 text-slate-400">
       <div className="flex items-center gap-2">
         <div className="w-5 h-5 border-2 border-teal-500 border-t-transparent
                         rounded-full animate-spin" />
-        Chargement du tableau de bord...
+        {t("dashboard.loading")}
       </div>
     </div>
   );
@@ -124,41 +114,39 @@ export default function DashboardPage() {
 
       {/* ── Titre ── */}
       <div>
-        <h2 className="text-xl font-bold text-slate-800">Tableau de bord</h2>
-        <p className="text-sm text-slate-400 mt-0.5">
-          Vue d'ensemble de l'activité ArchiFlow
-        </p>
+       <h2>{t("dashboard.title")}</h2>
+      <p>{t("dashboard.subtitle")}</p>
       </div>
 
       {/* ── Cartes stats ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <StatCard
-          label="Total documents"
+          label={t("dashboard.total_docs")}
           value={totalDocs}
-          sub="dans la base"
+          sub={t("dashboard.in_base")}
           icon={MdFolderOpen}
           accent="bg-teal-700"
         />
         <StatCard
-  label="Uploads ce mois"
-  value={uploadsByMonth.length > 0
-    ? (uploadsByMonth[uploadsByMonth.length - 1]?.documents ?? 0)
-    : 0}
-  sub="ce mois-ci"
-  icon={MdUploadFile}
+          label={t("dashboard.uploads_month")}
+          value={uploadsByMonth.length > 0
+            ? (uploadsByMonth[uploadsByMonth.length - 1]?.documents ?? 0)
+            : 0}
+          sub={t("dashboard.this_month")}
+          icon={MdUploadFile}
   accent="bg-slate-700"
 />
         <StatCard
-          label="Utilisateurs"
+          label={t("dashboard.users")}
           value={totalUsers}
-          sub={`${activeUsers} actif${activeUsers > 1 ? "s" : ""}`}
+          sub={`${activeUsers} ${activeUsers > 1 ? t("dashboard.active_plural") : t("dashboard.active")}`}
           icon={MdPeople}
           accent="bg-teal-600"
         />
         <StatCard
-          label="Types de fichiers"
+          label={t("dashboard.file_types")}
           value={byType.length}
-          sub="formats différents"
+          sub={t("dashboard.various_formats")}
           icon={MdTrendingUp}
           accent="bg-slate-600"
         />
@@ -169,12 +157,10 @@ export default function DashboardPage() {
 
         {/* Aires — uploads par mois */}
         <div className="xl:col-span-2 bg-white rounded-xl border border-slate-200 p-5">
-          <h3 className="text-sm font-semibold text-slate-700 mb-4">
-            Uploads par mois
-          </h3>
+          <h3>{t("dashboard.uploads_chart")}</h3>
           {uploadsByMonth.every((m) => m.documents === 0) ? (
             <div className="h-56 flex items-center justify-center text-slate-400 text-sm">
-              Aucun document uploadé encore.
+              {t("dashboard.no_docs")}
             </div>
           ) : (
             <ResponsiveContainer width="100%" height={220}>
@@ -200,12 +186,10 @@ export default function DashboardPage() {
 
         {/* Pie — répartition par auteur */}
         <div className="bg-white rounded-xl border border-slate-200 p-5">
-          <h3 className="text-sm font-semibold text-slate-700 mb-4">
-            Documents par auteur
-          </h3>
+         <h3>{t("dashboard.by_author")}</h3>
           {byAuthor.length === 0 ? (
             <div className="h-56 flex items-center justify-center text-slate-400 text-sm">
-              Aucune donnée.
+              {t("dashboard.no_data")}
             </div>
           ) : (
             <ResponsiveContainer width="100%" height={220}>
@@ -231,12 +215,10 @@ export default function DashboardPage() {
 
         {/* Barres — par type */}
         <div className="bg-white rounded-xl border border-slate-200 p-5">
-          <h3 className="text-sm font-semibold text-slate-700 mb-4">
-            Répartition par type
-          </h3>
+          <h3>{t("dashboard.by_type")}</h3>
           {byType.length === 0 ? (
             <div className="h-48 flex items-center justify-center text-slate-400 text-sm">
-              Aucun document.
+              {t("dashboard.no_documents")}
             </div>
           ) : (
             <ResponsiveContainer width="100%" height={200}>
@@ -256,18 +238,18 @@ export default function DashboardPage() {
         {/* Activité récente */}
 <div className="xl:col-span-2 bg-white rounded-xl border border-slate-200 p-5">
   <div className="flex items-center justify-between mb-4">
-    <h3 className="text-sm font-semibold text-slate-700">Activité récente</h3>
+    <h3 className="text-sm font-semibold text-slate-700">{t("dashboard.recent_activity")}</h3>
     <button
       onClick={() => navigate("/archives")}
-      className="text-xs text-teal-600 hover:underline"
+      className="text-xs text-teal-600 "
     >
-      Voir tout →
+      {t("dashboard.see_all")}
     </button>
   </div>
 
   {logs.length === 0 ? (
     <div className="py-8 text-center text-slate-400 text-sm">
-      Aucune activité récente.
+      {t("dashboard.no_docs")}
     </div>
   ) : (
     <div className="space-y-3">
@@ -293,7 +275,7 @@ export default function DashboardPage() {
                 {item.doc_name}
               </p>
               <p className="text-xs text-slate-400">
-                {item.user_name} · {new Date(item.created_at).toLocaleDateString("fr-FR")}
+                {item.user_name} · {new Date(item.created_at).toLocaleDateString(i18n.language === "en" ? "en-US" : "fr-FR")}
               </p>
             </div>
           </div>

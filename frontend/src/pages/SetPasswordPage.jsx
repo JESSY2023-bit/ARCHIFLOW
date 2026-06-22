@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { MdArchive, MdLock, MdCheck } from "react-icons/md";
+import { useTranslation } from "react-i18next";
+import { MdLock, MdCheck } from "react-icons/md";
 import { validateToken, setPassword } from "../api/users";
 import tenant from "../config/tenant";
 
 export default function SetPasswordPage() {
+  const { t } = useTranslation();
   const { token }   = useParams();
   const navigate    = useNavigate();
   const [info, setInfo]         = useState(null);
@@ -17,17 +19,17 @@ export default function SetPasswordPage() {
   useEffect(() => {
     validateToken(token)
       .then((res) => setInfo(res.data))
-      .catch((err) => setError(err.response?.data?.error || "Lien invalide ou expiré."))
+      .catch((err) => setError(err.response?.data?.error || t("set_password.invalid_or_expired")))
       .finally(() => setLoading(false));
-  }, [token]);
+  }, [token, t]);
 
   const handleSubmit = async () => {
     if (form.password !== form.confirm) {
-      setError("Les mots de passe ne correspondent pas.");
+      setError(t("set_password.pwd_mismatch"));
       return;
     }
     if (form.password.length < 6) {
-      setError("Le mot de passe doit contenir au moins 6 caractères.");
+      setError(t("set_password.pwd_min"));
       return;
     }
     setSubmitting(true);
@@ -36,7 +38,7 @@ export default function SetPasswordPage() {
       await setPassword({ token, password: form.password, confirm: form.confirm });
       setSuccess(true);
     } catch (err) {
-      setError(err.response?.data?.error || "Erreur lors de la création du compte.");
+      setError(err.response?.data?.error || t("set_password.create_error"));
     } finally {
       setSubmitting(false);
     }
@@ -52,7 +54,7 @@ export default function SetPasswordPage() {
   <span className="text-2xl">{tenant.logoIcon}</span>
 </div>
 <h1 className="text-2xl font-bold text-slate-800 tracking-tight">{tenant.name}</h1>
-<p className="text-slate-500 text-sm mt-1">Création de votre compte</p>
+<p className="text-slate-500 text-sm mt-1">{t("set_password.title")}</p>
 
 
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
@@ -62,7 +64,7 @@ export default function SetPasswordPage() {
             <div className="text-center py-8 text-slate-400">
               <div className="w-6 h-6 border-2 border-teal-500 border-t-transparent
                               rounded-full animate-spin mx-auto mb-3" />
-              Vérification du lien...
+              {t("set_password.verifying")}
             </div>
           )}
 
@@ -73,11 +75,11 @@ export default function SetPasswordPage() {
                               justify-center mx-auto mb-3">
                 <span className="text-rose-500 text-xl">✕</span>
               </div>
-              <p className="text-rose-600 font-medium mb-2">Lien invalide</p>
+              <p className="text-rose-600 font-medium mb-2">{t("set_password.invalid")}</p>
               <p className="text-slate-400 text-sm mb-6">{error}</p>
               <button onClick={() => navigate("/login")}
                 className="text-teal-600 text-sm hover:underline">
-                Retour à la connexion
+                {t("set_password.back_login")}
               </button>
             </div>
           )}
@@ -89,16 +91,16 @@ export default function SetPasswordPage() {
                               justify-center mx-auto mb-3">
                 <MdCheck className="text-emerald-500 text-2xl" />
               </div>
-              <p className="text-emerald-700 font-medium mb-2">Compte créé !</p>
+              <p className="text-emerald-700 font-medium mb-2">{t("set_password.success")}</p>
               <p className="text-slate-400 text-sm mb-6">
-                Vous pouvez maintenant vous connecter avec votre email et mot de passe.
+                {t("set_password.success_msg")}
               </p>
               <button
                 onClick={() => navigate("/login")}
                 className="w-full bg-teal-700 text-white py-2.5 rounded-lg text-sm
                            font-semibold hover:bg-teal-800 transition"
               >
-                Se connecter
+                {t("set_password.login")}
               </button>
             </div>
           )}
@@ -107,7 +109,7 @@ export default function SetPasswordPage() {
           {!loading && info && !success && (
             <div>
               <div className="bg-slate-50 rounded-xl p-4 mb-6 border border-slate-200">
-                <p className="text-xs text-slate-400 mb-1">Vous êtes invité(e) en tant que</p>
+                <p className="text-xs text-slate-400 mb-1">{t("set_password.invited_as")}</p>
                 <p className="text-sm font-semibold text-slate-700">{info.email}</p>
                 <span className="text-xs bg-teal-50 text-teal-700 border border-teal-100
                                  px-2 py-0.5 rounded-full font-medium capitalize mt-1 inline-block">
@@ -125,7 +127,7 @@ export default function SetPasswordPage() {
               <div className="space-y-4">
                 <div>
                   <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                    Nouveau mot de passe
+                    {t("set_password.new_pwd")}
                   </label>
                   <div className="relative mt-1">
                     <MdLock className="absolute left-3 top-1/2 -translate-y-1/2
@@ -143,7 +145,7 @@ export default function SetPasswordPage() {
 
                 <div>
                   <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                    Confirmer le mot de passe
+                    {t("set_password.confirm_pwd")}
                   </label>
                   <div className="relative mt-1">
                     <MdLock className="absolute left-3 top-1/2 -translate-y-1/2
@@ -163,7 +165,7 @@ export default function SetPasswordPage() {
                   </div>
                   {form.confirm && form.password !== form.confirm && (
                     <p className="text-xs text-rose-500 mt-1">
-                      Les mots de passe ne correspondent pas.
+                      {t("set_password.pwd_mismatch")}
                     </p>
                   )}
                 </div>
@@ -174,7 +176,7 @@ export default function SetPasswordPage() {
                   className="w-full bg-teal-700 text-white py-2.5 rounded-lg text-sm
                              font-semibold hover:bg-teal-800 transition disabled:opacity-50 mt-2"
                 >
-                  {submitting ? "Création en cours..." : "Créer mon compte"}
+                  {submitting ? t("set_password.creating") : t("set_password.create")}
                 </button>
               </div>
             </div>

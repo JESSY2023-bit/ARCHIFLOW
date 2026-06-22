@@ -54,8 +54,10 @@ class DocumentListCreateView(generics.ListCreateAPIView):
         qs        = Document.objects.select_related("author", "category").prefetch_related("versions")
         file_type = self.request.query_params.get("type")
         author_id = self.request.query_params.get("author")
+        category_id = self.request.query_params.get("category")
         if file_type: qs = qs.filter(file_type=file_type)
         if author_id: qs = qs.filter(author_id=author_id)
+        if category_id: qs = qs.filter(category_id=category_id)
         return qs
 
     def get_serializer_class(self):

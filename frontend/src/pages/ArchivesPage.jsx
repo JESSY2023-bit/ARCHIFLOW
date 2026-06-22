@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -5,10 +6,11 @@ import {
   MdPictureAsPdf, MdTableChart, MdDescription,
   MdInsertDriveFile, MdDownload, MdDelete, MdVisibility,
 } from "react-icons/md";
-import { getDocuments, deleteDocument } from "../api/documents";
+import { getDocuments, getCategories, deleteDocument } from "../api/documents";
 import { useAuthStore } from "../store/authStore";
 import { useToastStore } from "../store/toastStore";
 import Pagination from "../components/Pagination";
+import { resolveMediaUrl } from "../config/api";
 
 const typeIcon = {
   PDF:   <MdPictureAsPdf className="text-rose-500 text-xl" />,
@@ -22,32 +24,32 @@ const typeBadge = {
   Word:  "bg-sky-50 text-sky-600 border border-sky-100",
 };
 
-function DeleteModal({ docName, onConfirm, onClose }) {
+function DeleteModal({ docName, onConfirm, onClose, t }) {
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
       <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm">
         <h3 className="text-base font-bold text-slate-800 mb-2">
-          Supprimer ce document ?
+          {t("archives.delete_title")}
         </h3>
         <p className="text-sm text-slate-500 mb-1">
-          Vous êtes sur le point de supprimer :
+          {t("archives.delete_about")}
         </p>
         <p className="text-sm font-medium text-slate-700 mb-3 truncate">
           📄 {docName}
         </p>
         <p className="text-xs text-rose-400 mb-5">
-          ⚠️ Cette action est irréversible.
+          {t("archives.irreversible")}
         </p>
         <div className="flex gap-3">
           <button onClick={onClose}
             className="flex-1 border border-slate-200 text-slate-600 text-sm py-2.5
                        rounded-lg hover:bg-slate-50 transition font-medium">
-            Annuler
+            {t("actions.cancel")}
           </button>
           <button onClick={onConfirm}
             className="flex-1 bg-rose-500 text-white text-sm py-2.5 rounded-lg
                        hover:bg-rose-600 transition font-medium">
-            Supprimer
+            {t("actions.delete")}
           </button>
         </div>
       </div>
@@ -56,12 +58,15 @@ function DeleteModal({ docName, onConfirm, onClose }) {
 }
 
 export default function ArchivesPage() {
+  const { t, i18n } = useTranslation();
   const [documents, setDocuments]   = useState([]);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState(null);
   const [search, setSearch]         = useState("");
-  const [searchInput, setSearchInput] = useState(""); // ✅ valeur brute input
+  const [searchInput, setSearchInput] = useState(""); // valeur brute input
   const [filterType, setFilterType] = useState("Tous");
+  const [filterCategory, setFilterCategory] = useState("");
+  const [categories, setCategories] = useState([]);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [page, setPage]             = useState(1);
   const [totalItems, setTotalItems] = useState(0);
@@ -90,6 +95,7 @@ export default function ArchivesPage() {
       const params = { page };
       if (search)                params.search = search;
       if (filterType !== "Tous") params.type   = filterType;
+      if (filterCategory) params.category = filterCategory;
       const res = await getDocuments(params);
       const data = res.data;
       // Support pagination DRF (results) ou tableau simple
@@ -103,23 +109,28 @@ export default function ArchivesPage() {
         setTotalPages(1);
       }
     } catch {
-      setError("Impossible de charger les documents.");
+      setError(t("archives.loading_error"));
     } finally {
       setLoading(false);
     }
-  }, [search, filterType, page]);
+  }, [search, filterType, filterCategory, page, t]);
 
   useEffect(() => { fetchDocuments(); }, [fetchDocuments]);
+  useEffect(() => {
+    getCategories()
+      .then((res) => setCategories(res.data.results || res.data))
+      .catch(() => setCategories([]));
+  }, []);
 
   // ── Suppression ────────────────────────────────────────────────────────
   const handleDelete = async () => {
     if (!deleteTarget) return;
     try {
       await deleteDocument(deleteTarget.id);
-      success("Document supprimé avec succès.");
+      success(t("archives.deleted"));
       fetchDocuments();
     } catch {
-      toastError("Erreur lors de la suppression.");
+      toastError(t("archives.delete_error"));
     } finally {
       setDeleteTarget(null);
     }
@@ -129,6 +140,7 @@ export default function ArchivesPage() {
     setSearchInput("");
     setSearch("");
     setFilterType("Tous");
+    setFilterCategory("");
     setPage(1);
   };
 
@@ -140,9 +152,9 @@ export default function ArchivesPage() {
       {/* ── En-tête ── */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-xl font-bold text-slate-800">Archives</h2>
+          <h2>{t("archives.title")}</h2>
           <p className="text-sm text-slate-400 mt-0.5">
-            {totalItems} document{totalItems > 1 ? "s" : ""}
+            {totalItems} {totalItems > 1 ? t("archives.documents_pl") : t("archives.documents")}
           </p>
         </div>
         {["admin", "editeur"].includes(user?.role) && (
@@ -151,7 +163,7 @@ export default function ArchivesPage() {
             className="flex items-center gap-2 bg-teal-700 hover:bg-teal-800
                        text-white text-sm px-4 py-2 rounded-lg transition font-medium"
           >
-            <MdAdd className="text-lg" /> Nouveau document
+            <MdAdd className="text-lg" /> {t("archives.new_document")}
           </button>
         )}
       </div>
@@ -164,7 +176,7 @@ export default function ArchivesPage() {
                                   text-slate-400 text-lg" />
             <input
               type="text"
-              placeholder="Rechercher par nom ou tag..."
+              placeholder={t("archives.search")}
               value={searchInput}
               onChange={(e) => handleSearchInput(e.target.value)}
               className="w-full border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm
@@ -179,16 +191,33 @@ export default function ArchivesPage() {
               className="border border-slate-200 rounded-lg px-3 py-2 text-sm
                          focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
             >
-              {types.map((t) => <option key={t}>{t}</option>)}
+              {types.map((type) => (
+                <option key={type} value={type}>
+                  {type === "Tous" ? t("archives.all_types") : type}
+                </option>
+              ))}
             </select>
           </div>
-          {(searchInput || filterType !== "Tous") && (
+          <select
+            value={filterCategory}
+            onChange={(e) => { setFilterCategory(e.target.value); setPage(1); }}
+            className="border border-slate-200 rounded-lg px-3 py-2 text-sm
+                       focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
+          >
+            <option value="">{t("archives.all_categories")}</option>
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </select>
+          {(searchInput || filterType !== "Tous" || filterCategory) && (
             <button
               onClick={resetFilters}
               className="flex items-center gap-1 text-sm text-slate-400
                          hover:text-rose-500 transition px-2"
             >
-              <MdClose className="text-base" /> Réinitialiser
+              <MdClose className="text-base" /> {t("archives.reset")}
             </button>
           )}
         </div>
@@ -199,7 +228,8 @@ export default function ArchivesPage() {
         <table className="w-full text-sm">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
-              {["Nom", "Type", "Taille", "Date", "Auteur", "Actions"].map((h) => (
+              {[t("archives.name"), t("archives.type"), t("archives.size"),
+  t("archives.date"), t("archives.author"), t("archives.actions")].map((h) => (
                 <th key={h}
                   className="text-left px-4 py-3 text-xs font-semibold text-slate-500
                              uppercase tracking-wide">
@@ -232,7 +262,7 @@ export default function ArchivesPage() {
 
             {!loading && error && (
               <tr>
-                <td colSpan={6} className="text-center py-16 text-rose-400">{error}</td>
+                <td colSpan={6} className="text-center py-16 text-rose-400">{t("archives.loading_error")}</td>
               </tr>
             )}
 
@@ -240,7 +270,7 @@ export default function ArchivesPage() {
               <tr>
                 <td colSpan={6} className="text-center py-16 text-slate-400">
                   <MdInsertDriveFile className="text-4xl mx-auto mb-2 text-slate-300" />
-                  Aucun document trouvé.
+                  {t("archives.no_documents")}
                 </td>
               </tr>
             )}
@@ -278,7 +308,7 @@ export default function ArchivesPage() {
                 </td>
 
                 <td className="px-4 py-3 text-slate-500">
-                  {new Date(doc.created_at).toLocaleDateString("fr-FR")}
+                  {new Date(doc.created_at).toLocaleDateString(i18n.language === "en" ? "en-US" : "fr-FR")}
                 </td>
 
                 <td className="px-4 py-3">
@@ -300,17 +330,17 @@ export default function ArchivesPage() {
                     <button
                       onClick={() => navigate(`/archives/${doc.id}`)}
                       className="text-slate-400 hover:text-teal-600 transition"
-                      title="Voir"
+                      title={t("archives.view")}
                     >
                       <MdVisibility className="text-lg" />
                     </button>
                     {doc.current_version?.file && (
                       
-                     <a   href={`http://localhost:8000${doc.current_version.file}`}
+                     <a   href={resolveMediaUrl(doc.current_version.file)}
                         target="_blank"
                         rel="noreferrer"
                         className="text-slate-400 hover:text-teal-600 transition"
-                        title="Télécharger"
+                        title={t("archives.download")}
                       >
                         <MdDownload className="text-lg" />
                       </a>
@@ -319,7 +349,7 @@ export default function ArchivesPage() {
                       <button
                         onClick={() => setDeleteTarget({ id: doc.id, name: doc.name })}
                         className="text-slate-400 hover:text-rose-500 transition"
-                        title="Supprimer"
+                        title={t("actions.delete")}
                       >
                         <MdDelete className="text-lg" />
                       </button>
@@ -348,6 +378,7 @@ export default function ArchivesPage() {
           docName={deleteTarget.name}
           onConfirm={handleDelete}
           onClose={() => setDeleteTarget(null)}
+          t={t}
         />
       )}
 

@@ -1,12 +1,17 @@
 from pathlib import Path
-from decouple import config
+from decouple import Csv, config
 from datetime import timedelta
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+
+def cast_debug(value):
+    return str(value).strip().lower() not in {"0", "false", "no", "off", "release", "prod", "production"}
+
+
 SECRET_KEY = config("SECRET_KEY", default="dev-secret-key-change-in-production")
-DEBUG = config("DEBUG", default=True, cast=bool)
-ALLOWED_HOSTS = ["*"]
+DEBUG = config("DEBUG", default=True, cast=cast_debug)
+ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="localhost,127.0.0.1", cast=Csv())
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -80,7 +85,7 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 MEDIA_URL  = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
+MEDIA_ROOT = Path(config("MEDIA_ROOT", default=str(BASE_DIR / "media")))
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -105,10 +110,11 @@ SIMPLE_JWT = {
 }
 
 # ── CORS — autorise le frontend React ────────────────────────────────────
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-]
+CORS_ALLOWED_ORIGINS = config(
+    "CORS_ALLOWED_ORIGINS",
+    default="http://localhost:5173,http://127.0.0.1:5173",
+    cast=Csv(),
+)
 
 AUTHENTICATION_BACKENDS = [
     "users.backends.EmailBackend",

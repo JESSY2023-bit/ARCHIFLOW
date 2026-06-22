@@ -2,8 +2,10 @@ import {
   MdChevronLeft, MdChevronRight,
   MdFirstPage, MdLastPage,
 } from "react-icons/md";
+import { useTranslation } from "react-i18next";
 
 export default function Pagination({ page, totalPages, totalItems, pageSize, onPageChange }) {
+  const { t } = useTranslation();
   if (totalPages <= 1) return null;
 
   const pages = [];
@@ -25,8 +27,11 @@ export default function Pagination({ page, totalPages, totalItems, pageSize, onP
                     border-t border-slate-200">
       {/* Info */}
       <p className="text-xs text-slate-400">
-        {Math.min((page - 1) * pageSize + 1, totalItems)}–
-        {Math.min(page * pageSize, totalItems)} sur {totalItems}
+        {t("pagination.range", {
+          start: Math.min((page - 1) * pageSize + 1, totalItems),
+          end: Math.min(page * pageSize, totalItems),
+          total: totalItems,
+        })}
       </p>
 
       {/* Boutons */}
