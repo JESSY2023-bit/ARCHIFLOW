@@ -23,7 +23,7 @@ Les fichiers uploades sont servis par le backend depuis `MEDIA_ROOT`. Le fronten
 
 Le projet est concu en mode **une application = un frontend + un backend + une base de donnees**.
 
-Il n'y a pas de modele `Tenant` ou `Organization` dans les tables. L'isolation se fait au niveau du deploiement :
+L'isolation se fait au niveau du deploiement :
 
 - chaque application a sa propre base PostgreSQL
 - chaque application a son propre dossier de medias
@@ -31,7 +31,7 @@ Il n'y a pas de modele `Tenant` ou `Organization` dans les tables. L'isolation s
 - chaque application a son propre fichier `.env` frontend
 - chaque application pointe vers sa propre API avec `VITE_API_URL`
 
-Donc oui : les utilisateurs d'une application n'auront pas acces aux donnees d'une autre application **si chaque application utilise une base de donnees differente et un dossier media different**.
+Donc les utilisateurs d'une application n'auront pas acces aux donnees d'une autre application **si chaque application utilise une base de donnees differente et un dossier media different**.
 
 Exemple d'isolation correcte :
 
@@ -68,7 +68,7 @@ Important : ne jamais faire pointer deux applications vers le meme `DB_NAME` ou 
 ## Prerequis
 
 - Node.js et npm installes
-- Backend Django lance et accessible
+- Backend Django lancer et accessible
 - Base PostgreSQL creee pour l'application
 - Migrations backend appliquees
 - Fichier `.env` backend configure
@@ -148,7 +148,7 @@ Variables importantes :
 - `DB_NAME` : base PostgreSQL dediee a l'application
 - `DB_USER` / `DB_PASSWORD` : identifiants PostgreSQL de cette application
 - `MEDIA_ROOT` : dossier dedie aux fichiers uploades de cette application
-- `FRONTEND_URL` : URL du frontend, utilisee dans les liens d'invitation
+- `FRONTEND_URL` : URL du frontend, utilisée dans les liens d'invitation
 - `DEFAULT_FROM_EMAIL` : adresse d'envoi des emails
 
 ## Installation Locale
@@ -210,7 +210,7 @@ npm run lint
 - `/categories` : gestion des categories, reservee aux admins
 - `/users` : gestion des utilisateurs, reservee aux admins
 - `/profile` : profil utilisateur
-- `/set-password/:token` : creation de compte invite
+- `/set-password/:token` : creation de compte invité
 - `/unauthorized` : acces refuse
 
 ## Fonctionnalites
@@ -237,8 +237,8 @@ L'initialisation est dans `src/i18n.js`. La langue par defaut vient de `VITE_LAN
 
 Pour ajouter un texte :
 
-1. Ajouter la cle dans `fr.json`.
-2. Ajouter la meme cle dans `en.json`.
+1. Ajouter la clé dans `fr.json`.
+2. Ajouter la meme clé dans `en.json`.
 3. Utiliser `const { t } = useTranslation();` dans le composant.
 4. Afficher le texte avec `t("section.key")`.
 
