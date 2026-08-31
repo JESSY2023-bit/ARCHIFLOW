@@ -41,6 +41,34 @@ class Document(models.Model):
         ordering = ["-created_at"]
 
 
+class DocumentAccess(models.Model):
+    document = models.ForeignKey(Document, on_delete=models.CASCADE, related_name="access_rules")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="document_accesses")
+    can_view = models.BooleanField(default=True)
+    can_edit = models.BooleanField(default=False)
+    can_download = models.BooleanField(default=False)
+    # Nouveau : permet à un utilisateur autorisé de gérer les accès du document
+    can_manage_access = models.BooleanField(default=False)
+    granted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="granted_document_accesses",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["document", "user"], name="unique_document_user_access")
+        ]
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.user.email} -> {self.document.name}"
+
+
 class DocumentVersion(models.Model):
     document   = models.ForeignKey(Document, on_delete=models.CASCADE,
                                    related_name="versions")
@@ -49,7 +77,7 @@ class DocumentVersion(models.Model):
     note       = models.CharField(max_length=255, blank=True)
     size       = models.PositiveIntegerField(default=0, help_text="Taille en octets")
     uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
-                                    null=True, related_name="versions")
+                                   null=True, related_name="versions")
     uploaded_at = models.DateTimeField(auto_now_add=True)
     is_current  = models.BooleanField(default=False)
 

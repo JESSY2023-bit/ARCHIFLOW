@@ -8,7 +8,17 @@ import {
   MdLabel, MdFolder, MdCheckCircle, MdClose,
   MdUploadFile, MdVisibility, MdInsertDriveFile,
 } from "react-icons/md";
-import { getDocument, deleteDocument, createVersion, restoreVersion } from "../api/documents";
+import {
+  getDocument,
+  deleteDocument,
+  createVersion,
+  restoreVersion,
+  getDocumentAccesses,
+  createDocumentAccess,
+  updateDocumentAccess,
+  deleteDocumentAccess,
+} from "../api/documents";
+import { getUsers } from "../api/users";
 import { useAuthStore } from "../store/authStore";
 import { useToastStore } from "../store/toastStore";
 import { resolveMediaUrl } from "../config/api";
@@ -138,6 +148,238 @@ function NewVersionModal({ docId, onClose, onSuccess }) {
   );
 }
 
+function AccessManagementModal({ documentId, onClose, onSuccess }) {
+  const { t } = useTranslation();
+  const { user } = useAuthStore();
+  const { error, success } = useToastStore();
+
+  const [users, setUsers] = useState([]);
+  const [accessRules, setAccessRules] = useState([]);
+  const [selectedUserId, setSelectedUserId] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    can_view: true,
+    can_edit: false,
+    can_download: false,
+    can_manage_access: false,
+  });
+
+  const loadData = useCallback(async () => {
+    try {
+      const [usersRes, accessRes] = await Promise.all([
+        getUsers(),
+        getDocumentAccesses(documentId),
+      ]);
+
+      const allUsers = Array.isArray(usersRes.data) ? usersRes.data : usersRes.data.results || [];
+      const allAccess = Array.isArray(accessRes.data) ? accessRes.data : accessRes.data.results || [];
+
+      setUsers(allUsers.filter((u) => u.id !== user?.id));
+      setAccessRules(allAccess);
+
+      if (allUsers.length > 0) {
+        const firstUser = allUsers.find((u) => u.id !== user?.id) || allUsers[0];
+        setSelectedUserId(String(firstUser.id));
+        const existing = allAccess.find((rule) => Number(rule.user) === Number(firstUser.id));
+        setForm(existing ? {
+          can_view: !!existing.can_view,
+          can_edit: !!existing.can_edit,
+          can_download: !!existing.can_download,
+        } : { can_view: true, can_edit: false, can_download: false });
+      }
+    } catch {
+      error(t("document.permissions_error_load"));
+    } finally {
+      setLoading(false);
+    }
+  }, [documentId, user?.id, t, error]);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  const selectedRule = accessRules.find((rule) => Number(rule.user) === Number(selectedUserId));
+
+  useEffect(() => {
+    // keep form in sync when selectedRule changes
+    if (selectedRule) {
+      setForm({
+        can_view: !!selectedRule.can_view,
+        can_edit: !!selectedRule.can_edit,
+        can_download: !!selectedRule.can_download,
+        can_manage_access: !!selectedRule.can_manage_access,
+      });
+    }
+  }, [selectedRule]);
+
+  const handleUserChange = (nextUserId) => {
+    setSelectedUserId(nextUserId);
+    const existing = accessRules.find((rule) => Number(rule.user) === Number(nextUserId));
+    setForm(existing ? {
+      can_view: !!existing.can_view,
+      can_edit: !!existing.can_edit,
+      can_download: !!existing.can_download,
+    } : { can_view: true, can_edit: false, can_download: false });
+  };
+
+  const handleToggle = (key) => {
+    setForm((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
+
+  const handleSave = async () => {
+    if (!selectedUserId) return;
+    setSaving(true);
+    try {
+      const payload = {
+        user: Number(selectedUserId),
+        can_view: !!form.can_view,
+        can_edit: !!form.can_edit,
+        can_download: !!form.can_download,
+      };
+
+      if (selectedRule) {
+        await updateDocumentAccess(documentId, selectedRule.id, payload);
+      } else {
+        await createDocumentAccess(documentId, payload);
+      }
+
+      success(t("document.permissions_saved"));
+      await loadData();
+      onSuccess();
+      onClose();
+    } catch (err) {
+      error(err?.response?.data?.error || t("document.permissions_error_save"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRemove = async (ruleId) => {
+    try {
+      await deleteDocumentAccess(documentId, ruleId);
+      success(t("document.permissions_removed"));
+      await loadData();
+      onSuccess();
+    } catch {
+      error(t("document.permissions_error_remove"));
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] overflow-auto">
+        <div className="flex items-center justify-between p-5 border-b border-slate-200">
+          <h3 className="text-base font-bold text-slate-800">{t("document.permissions")}</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition">
+            <MdClose className="text-xl" />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-5">
+          {loading ? (
+            <div className="text-sm text-slate-500">{t("actions.loading")}</div>
+          ) : (
+            <>
+              <div>
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                  {t("document.permissions_user")}
+                </label>
+                <select
+                  value={selectedUserId}
+                  onChange={(e) => handleUserChange(e.target.value)}
+                  className="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                >
+                  {users.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.first_name || u.email} {u.last_name ? ` ${u.last_name}` : ""} ({u.email})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-3">
+                {[
+                  { key: "can_view", label: t("document.permissions_view") },
+                  { key: "can_edit", label: t("document.permissions_edit") },
+                  { key: "can_download", label: t("document.permissions_download") },
+                                { key: "can_manage_access", label: t("document.permissions_manage_access") },
+                              ].map(({ key, label }) => (
+                  <label key={key} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-3">
+                    <span className="text-sm text-slate-600">{label}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleToggle(key)}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${form[key] ? "bg-teal-600" : "bg-slate-300"}`}
+                      aria-label={label}
+                    >
+                      <span
+                       className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${form[key] ? "translate-x-5" : "translate-x-1"}`}
+                      />
+                    </button>
+                  </label>
+                ))}
+              </div>
+
+              <div className="border border-slate-200 rounded-xl overflow-hidden">
+                <div className="bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  {t("document.permissions_current")}
+                </div>
+                <div className="divide-y divide-slate-100">
+                  {accessRules.length === 0 ? (
+                    <div className="px-4 py-5 text-sm text-slate-500">{t("document.permissions_none")}</div>
+                  ) : (
+                    accessRules.map((rule) => {
+                      const userName = rule.user_detail
+                       ? `${rule.user_detail.first_name || ""} ${rule.user_detail.last_name || ""}`.trim() || rule.user_detail.email
+                       : rule.user;
+
+                      return (
+                       <div key={rule.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                         <div>
+                           <p className="text-sm font-medium text-slate-700">{userName}</p>
+                           <div className="flex flex-wrap gap-2 mt-1 text-[11px]">
+                             {rule.can_view && <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">{t("document.permissions_view")}</span>}
+                             {rule.can_edit && <span className="bg-sky-100 text-sky-700 px-2 py-0.5 rounded-full">{t("document.permissions_edit")}</span>}
+                             {rule.can_download && <span className="bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full">{t("document.permissions_download")}</span>}
+                             {rule.can_manage_access && <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">{t("document.permissions_manage_access")}</span>}
+                           </div>
+                         </div>
+                         <button
+                           type="button"
+                           onClick={() => handleRemove(rule.id)}
+                           className="text-xs px-2.5 py-1.5 border border-rose-200 text-rose-600 rounded-lg hover:bg-rose-50 transition"
+                         >
+                           {t("actions.delete")}
+                         </button>
+                       </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="flex gap-3 border-t border-slate-200 p-5">
+          <button onClick={onClose} className="flex-1 border border-slate-200 text-slate-600 text-sm py-2.5 rounded-lg hover:bg-slate-50 transition font-medium">
+            {t("actions.cancel")}
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={!selectedUserId || saving || loading}
+            className="flex-1 bg-teal-700 text-white text-sm py-2.5 rounded-lg hover:bg-teal-800 transition font-medium disabled:opacity-40"
+          >
+            {saving ? t("actions.saving") : t("actions.save")}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Page principale ────────────────────────────────────────────────────────
 export default function DocumentDetailPage() {
   const { t, i18n } = useTranslation();
@@ -150,8 +392,9 @@ export default function DocumentDetailPage() {
   const [loading, setLoading]           = useState(true);
   const [fetchError, setFetchError]     = useState(null);
   const [tab, setTab]                   = useState("info");
-  const [showDelete, setShowDelete]     = useState(false);  // ✅ bien déclaré ici
+  const [showDelete, setShowDelete]     = useState(false);
   const [showVersion, setShowVersion]   = useState(false);
+  const [showAccessManager, setShowAccessManager] = useState(false);
   const [activeVersion, setActiveVersion] = useState(0);
 
   const fetchDoc = useCallback(async () => {
@@ -189,6 +432,8 @@ export default function DocumentDetailPage() {
       error(t("document.restore_error"));
     }
   };
+
+  const canManageAccess = user?.role === "admin" || Number(user?.id) === Number(doc?.author?.id) || (doc?.access_rules || []).some(r => Number(r.user) === Number(user?.id) && r.can_manage_access);
 
   // ── Chargement ────────────────────────────────────────────────────────
   if (loading) return (
@@ -397,6 +642,45 @@ export default function DocumentDetailPage() {
               </div>
             </div>
           </div>
+
+          {canManageAccess && (
+            <div className="xl:col-span-3 bg-white rounded-xl border border-slate-200 p-6">
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                  <MdPerson className="text-teal-600" /> {t("document.permissions")}
+                </h3>
+                <button
+                  onClick={() => setShowAccessManager(true)}
+                  className="bg-teal-700 text-white text-xs px-3 py-2 rounded-lg hover:bg-teal-800 transition"
+                >
+                  {t("document.permissions_manage")}
+                </button>
+              </div>
+
+              {(!doc.access_rules || doc.access_rules.length === 0) ? (
+                <p className="text-sm text-slate-500">{t("document.permissions_none")}</p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {doc.access_rules.map((rule) => {
+                    const userName = rule.user_detail
+                      ? `${rule.user_detail.first_name || ""} ${rule.user_detail.last_name || ""}`.trim() || rule.user_detail.email
+                      : "—";
+
+                    return (
+                      <div key={rule.id} className="border border-slate-200 rounded-xl p-3">
+                        <p className="text-sm font-semibold text-slate-700">{userName}</p>
+                        <div className="flex flex-wrap gap-2 mt-2 text-[11px]">
+                          {rule.can_view && <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">{t("document.permissions_view")}</span>}
+                          {rule.can_edit && <span className="bg-sky-100 text-sky-700 px-2 py-0.5 rounded-full">{t("document.permissions_edit")}</span>}
+                          {rule.can_download && <span className="bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full">{t("document.permissions_download")}</span>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -504,6 +788,13 @@ export default function DocumentDetailPage() {
         <NewVersionModal
           docId={id}
           onClose={() => setShowVersion(false)}
+          onSuccess={fetchDoc}
+        />
+      )}
+      {showAccessManager && (
+        <AccessManagementModal
+          documentId={id}
+          onClose={() => setShowAccessManager(false)}
           onSuccess={fetchDoc}
         />
       )}

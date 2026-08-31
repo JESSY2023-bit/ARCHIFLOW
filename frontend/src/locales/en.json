@@ -200,7 +200,21 @@
     "restored": "Version restored successfully.",
     "restore_error": "Error while restoring.",
     "deleted": "Document deleted.",
-    "upload_error": "Upload error."
+    "upload_error": "Upload error.",
+    "permissions": "Document access",
+    "permissions_manage": "Manage access",
+    "permissions_user": "User",
+    "permissions_view": "Read",
+    "permissions_edit": "Edit",
+    "permissions_download": "Download",
+    "permissions_current": "Current permissions",
+    "permissions_none": "No specific access has been configured for this document.",
+    "permissions_saved": "Permissions saved.",
+    "permissions_removed": "Permission removed.",
+    "permissions_manage_access": "Manage access",
+    "permissions_error_load": "Unable to load permissions.",
+    "permissions_error_save": "Error while saving permissions.",
+    "permissions_error_remove": "Error while deleting the permission."
   },
   "profile": {
     "title": "My profile",
@@ -231,6 +245,7 @@
   },
   "actions": {
     "save": "Save",
+    "saving": "Saving...",
     "cancel": "Cancel",
     "delete": "Delete",
     "edit": "Edit",

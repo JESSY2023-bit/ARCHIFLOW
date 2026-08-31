@@ -7,6 +7,18 @@ export const getDocuments = (params) =>
 export const getDocument = (id) =>
   api.get(`/documents/${id}/`);
 
+export const getDocumentAccesses = (documentId) =>
+  api.get(`/documents/${documentId}/permissions/`);
+
+export const createDocumentAccess = (documentId, data) =>
+  api.post(`/documents/${documentId}/permissions/`, data);
+
+export const updateDocumentAccess = (documentId, accessId, data) =>
+  api.patch(`/documents/${documentId}/permissions/${accessId}/`, data);
+
+export const deleteDocumentAccess = (documentId, accessId) =>
+  api.delete(`/documents/${documentId}/permissions/${accessId}/`);
+
 export const createDocument = (formData) =>
   api.post("/documents/", formData, {
     headers: { "Content-Type": "multipart/form-data" },

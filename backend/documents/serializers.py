@@ -1,26 +1,49 @@
 from rest_framework import serializers
-from .models import Document, DocumentVersion, Category, ActivityLog
+from .models import Document, DocumentVersion, Category, ActivityLog, DocumentAccess
 from users.serializers import UserSerializer
 
+
 class CategorySerializer(serializers.ModelSerializer):
-    # read_only=True obligatoire pour les champs calculés
     document_count = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
-        model  = Category
-        # document_count retiré de fields pour la création
+        model = Category
         fields = ["id", "name", "document_count"]
-        # document_count en lecture seule
         read_only_fields = ["document_count"]
 
     def get_document_count(self, obj):
         return obj.documents.count()
+
+
+class DocumentAccessSerializer(serializers.ModelSerializer):
+    user = serializers.PrimaryKeyRelatedField(queryset=UserSerializer.Meta.model.objects.all())
+    user_detail = UserSerializer(source="user", read_only=True)
+    granted_by = UserSerializer(read_only=True)
+
+    class Meta:
+        model = DocumentAccess
+        fields = [
+            "id",
+            "document",
+            "user",
+            "user_detail",
+            "can_view",
+            "can_edit",
+            "can_download",
+            "can_manage_access",
+            "granted_by",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "document", "granted_by", "created_at", "updated_at"]
+
+
 class DocumentVersionSerializer(serializers.ModelSerializer):
     uploaded_by = UserSerializer(read_only=True)
     size_display = serializers.SerializerMethodField()
 
     class Meta:
-        model  = DocumentVersion
+        model = DocumentVersion
         fields = [
             "id", "version", "file", "note",
             "size", "size_display", "is_current",
@@ -29,27 +52,31 @@ class DocumentVersionSerializer(serializers.ModelSerializer):
 
     def get_size_display(self, obj):
         size = obj.size
-        if size < 1024:            return f"{size} B"
-        if size < 1024 * 1024:     return f"{size/1024:.1f} KB"
-        return f"{size/(1024*1024):.1f} MB"
+        if size < 1024:
+            return f"{size} B"
+        if size < 1024 * 1024:
+            return f"{size / 1024:.1f} KB"
+        return f"{size / (1024 * 1024):.1f} MB"
+
 
 class DocumentSerializer(serializers.ModelSerializer):
-    author       = UserSerializer(read_only=True)
-    category     = CategorySerializer(read_only=True)
-    category_id  = serializers.PrimaryKeyRelatedField(
+    author = UserSerializer(read_only=True)
+    category = CategorySerializer(read_only=True)
+    category_id = serializers.PrimaryKeyRelatedField(
         queryset=Category.objects.all(), source="category", write_only=True, required=False
     )
-    versions     = DocumentVersionSerializer(many=True, read_only=True)
+    versions = DocumentVersionSerializer(many=True, read_only=True)
+    access_rules = DocumentAccessSerializer(many=True, read_only=True)
     current_version = serializers.SerializerMethodField()
-    tags_list    = serializers.SerializerMethodField()
+    tags_list = serializers.SerializerMethodField()
 
     class Meta:
-        model  = Document
+        model = Document
         fields = [
             "id", "name", "description", "file_type",
             "category", "category_id", "tags", "tags_list",
             "author", "created_at", "updated_at",
-            "versions", "current_version",
+            "versions", "current_version", "access_rules",
         ]
         read_only_fields = ["author", "created_at", "updated_at"]
 
@@ -60,42 +87,43 @@ class DocumentSerializer(serializers.ModelSerializer):
     def get_tags_list(self, obj):
         return obj.get_tags_list()
 
+
 class DocumentCreateSerializer(serializers.ModelSerializer):
-    file        = serializers.FileField(write_only=True)
+    file = serializers.FileField(write_only=True)
     version_note = serializers.CharField(write_only=True, required=False, default="Version initiale")
-    category_id  = serializers.PrimaryKeyRelatedField(
+    category_id = serializers.PrimaryKeyRelatedField(
         queryset=Category.objects.all(), source="category", required=False
     )
 
     class Meta:
-        model  = Document
+        model = Document
         fields = ["name", "description", "file_type", "category_id", "tags", "file", "version_note"]
 
     def create(self, validated_data):
-        file         = validated_data.pop("file")
+        file = validated_data.pop("file")
         version_note = validated_data.pop("version_note", "Version initiale")
-        request      = self.context.get("request")
-        user         = request.user if request else None
+        request = self.context.get("request")
+        user = request.user if request else None
 
         document = Document.objects.create(author=user, **validated_data)
 
         DocumentVersion.objects.create(
-            document    = document,
-            file        = file,
-            version     = "v1",
-            note        = version_note,
-            size        = file.size,
-            uploaded_by = user,
-            is_current  = True,
+            document=document,
+            file=file,
+            version="v1",
+            note=version_note,
+            size=file.size,
+            uploaded_by=user,
+            is_current=True,
         )
         return document
-    from .models import Document, DocumentVersion, Category, ActivityLog
+
 
 class ActivityLogSerializer(serializers.ModelSerializer):
     user_name = serializers.SerializerMethodField()
 
     class Meta:
-        model  = ActivityLog
+        model = ActivityLog
         fields = ["id", "action", "doc_name", "document", "user_name", "created_at"]
 
     def get_user_name(self, obj):

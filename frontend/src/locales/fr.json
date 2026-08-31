@@ -200,7 +200,21 @@
     "restored": "Version restaurée avec succès.",
     "restore_error": "Erreur lors de la restauration.",
     "deleted": "Document supprimé.",
-    "upload_error": "Erreur lors de l'upload."
+    "upload_error": "Erreur lors de l'upload.",
+    "permissions": "Accès document",
+    "permissions_manage": "Gérer les accès",
+    "permissions_user": "Utilisateur",
+    "permissions_view": "Lecture",
+    "permissions_edit": "Modification",
+    "permissions_download": "Téléchargement",
+    "permissions_current": "Permissions actuelles",
+    "permissions_none": "Aucun accès spécifique n'a été configuré pour ce document.",
+    "permissions_saved": "Permissions enregistrées.",
+    "permissions_removed": "Permission supprimée.",
+    "permissions_manage_access": "Gérer les accès",
+    "permissions_error_load": "Impossible de charger les permissions.",
+    "permissions_error_save": "Erreur lors de l'enregistrement des permissions.",
+    "permissions_error_remove": "Erreur lors de la suppression de la permission."
   },
   "profile": {
     "title": "Mon profil",
@@ -231,6 +245,7 @@
   },
   "actions": {
     "save": "Enregistrer",
+    "saving": "Enregistrement...",
     "cancel": "Annuler",
     "delete": "Supprimer",
     "edit": "Modifier",
