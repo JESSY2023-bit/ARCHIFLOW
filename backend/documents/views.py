@@ -5,6 +5,7 @@ from rest_framework.views import APIView
 from rest_framework.permissions import BasePermission
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.shortcuts import get_object_or_404
+from datetime import date
 from .models import Document, DocumentVersion, Category, ActivityLog, DocumentAccess
 from .serializers import (
     DocumentSerializer, DocumentCreateSerializer,
@@ -32,6 +33,14 @@ def log_activity(user, action, document=None, doc_name=""):
 
 
 def can_user_access_document(user, document, action="view"):
+    """Determine whether `user` can perform `action` on `document`.
+
+    Policy:
+    - admin: always True
+    - author: always True
+    - view: only admin or author (documents are private by default)
+    - edit/download: admin or author, otherwise check DocumentAccess flags
+    """
     if not user or not user.is_authenticated:
         return False
     if user.role == "admin":
@@ -39,12 +48,15 @@ def can_user_access_document(user, document, action="view"):
     if document.author_id == user.id:
         return True
 
+    # For view action, private-by-default: only admin/author can view
+    if action == "view":
+        return False
+
+    # For edit/download, fall back to explicit access rules
     access = DocumentAccess.objects.filter(document=document, user=user).first()
     if not access:
         return False
 
-    if action == "view":
-        return access.can_view
     if action == "edit":
         return access.can_edit
     if action == "download":
@@ -53,16 +65,19 @@ def can_user_access_document(user, document, action="view"):
 
 
 def get_visible_documents_for_user(user):
+    """Return documents visible to the user.
+
+    Policy (private-by-default):
+    - admin: all documents
+    - other users: only documents they authored
+    """
     if not user or not user.is_authenticated:
         return Document.objects.none()
     if user.role == "admin":
         return Document.objects.select_related("author", "category").prefetch_related("versions")
 
-    allowed_ids = list(
-        DocumentAccess.objects.filter(user=user, can_view=True).values_list("document_id", flat=True)
-    )
-    allowed_ids += list(Document.objects.filter(author=user).values_list("id", flat=True))
-    return Document.objects.filter(id__in=allowed_ids).select_related("author", "category").prefetch_related("versions").distinct()
+    # Only documents authored by the user
+    return Document.objects.filter(author=user).select_related("author", "category").prefetch_related("versions").distinct()
 
 # ── Vues ───────────────────────────────────────────────────────────────────
 class CategoryListView(generics.ListCreateAPIView):
@@ -107,6 +122,7 @@ class DocumentAccessListCreateView(generics.ListCreateAPIView):
 class DocumentAccessDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = DocumentAccessSerializer
     permission_classes = [permissions.IsAuthenticated]
+    lookup_url_kwarg = "access_id"
 
     def _user_can_manage(self, user, document):
         if not user or not user.is_authenticated:
@@ -137,12 +153,21 @@ class DocumentListCreateView(generics.ListCreateAPIView):
         file_type = self.request.query_params.get("type")
         author_id = self.request.query_params.get("author")
         category_id = self.request.query_params.get("category")
+        date_from = self.request.query_params.get("date_from")
+        date_to = self.request.query_params.get("date_to")
         if file_type:
             qs = qs.filter(file_type=file_type)
         if author_id:
             qs = qs.filter(author_id=author_id)
         if category_id:
             qs = qs.filter(category_id=category_id)
+        try:
+            if date_from:
+                qs = qs.filter(created_at__date__gte=date.fromisoformat(date_from))
+            if date_to:
+                qs = qs.filter(created_at__date__lte=date.fromisoformat(date_to))
+        except ValueError:
+            return qs.none()
         return qs
 
     def get_serializer_class(self):

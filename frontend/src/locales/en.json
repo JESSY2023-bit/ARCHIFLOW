@@ -56,6 +56,8 @@
     "search": "Search by name or tag...",
     "all_types": "All",
     "all_categories": "All categories",
+    "from": "From",
+    "to": "To",
     "reset": "Reset",
     "name": "Name",
     "type": "Type",

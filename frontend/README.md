@@ -256,3 +256,37 @@ Avant mise en production, je recommande au minimum :
 Le frontend comprend déjà les briques de base d’une application de gestion documentaire fonctionnelle : login, rôle, archives, upload, invitations et profil. C’est un bon MVP.
 
 La prochaine étape logique avant production est d’ajouter le contrôle d’accès granulaire au document et de nettoyer les restes de génération de template. À partir de là, le produit sera nettement plus sérieux et beaucoup mieux préparé pour un environnement réel.
+
+
+Ammélioration : 
+recherche avancée combinée : nom, auteur, type, catégorie, tags et période ;
+aperçu PDF/images directement dans l’application ;
+téléchargement avec journal d’activité ;
+corbeille avec restauration ;
+historique complet des versions ;
+partage sécurisé par lien temporaire ;
+permissions par dossier et par document ;
+notifications et alertes ;
+export Excel/CSV des archives ;
+recherche plein texte dans les documents ;
+détection de doublons ;
+OCR pour documents scannés ;
+validation électronique et workflow d’approbation ;
+tableau de bord avec statistiques par période ;
+sauvegarde automatique et politique d’archivage ;
+traçabilité complète conforme aux exigences d’audit.
+
+
+
+Point critique avant la production :
+Le fichier backend/.env contient encore :
+DEBUG=True
+une clé secrète de développement ;
+un mot de passe PostgreSQL réel.
+Les vulnérabilités axios, react-router, form-data et follow-redirects doivent être corrigées.
+Les téléchargements ne sont pas enregistrés dans l’activité récente.
+Il n’existe pas encore de tests frontend/backend.
+Le bundle frontend devrait être découpé par chargement dynamique.
+Il manque une vraie configuration de déploiement : HTTPS, Nginx, Gunicorn, sauvegardes, supervision et restauration.
+Les fichiers uploadés nécessitent une protection renforcée : limites serveur, antivirus, contrôle MIME et stockage sécurisé.
+Il faudrait ajouter une journalisation complète : connexion, téléchargement, consultation, export, suppression et modification.

@@ -50,16 +50,21 @@ export default function DashboardPage() {
   const { user } = useAuthStore();
 
  useEffect(() => {
-  const promises = [getDocuments(), getActivityLogs(5)];
+  const promises = [getDocuments({ page_size: 1000 }), getActivityLogs(5)];
   if (user?.role === "admin") promises.push(getUsers());
 
-  Promise.all(promises)
-    .then(([docsRes, logsRes, usersRes]) => {
-      setDocs(docsRes.data.results     || docsRes.data);
-      setLogs(logsRes.data.results     || logsRes.data);
-      if (usersRes) setUsers(usersRes.data.results || usersRes.data);
+  Promise.allSettled(promises)
+    .then(([docsResult, logsResult, usersResult]) => {
+      if (docsResult.status === "fulfilled") {
+        setDocs(docsResult.value.data.results || docsResult.value.data);
+      }
+      if (logsResult.status === "fulfilled") {
+        setLogs(logsResult.value.data.results || logsResult.value.data);
+      }
+      if (usersResult?.status === "fulfilled") {
+        setUsers(usersResult.value.data.results || usersResult.value.data);
+      }
     })
-    .catch(() => {})
     .finally(() => setLoading(false));
 }, [user?.role]);
 
@@ -89,15 +94,22 @@ export default function DashboardPage() {
   const now = new Date();
   for (let i = 5; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const key = d.toLocaleDateString(i18n.language === "en" ? "en-US" : "fr-FR", { month: "short" });
+    const key = `${d.getFullYear()}-${d.getMonth()}`;
     monthMap[key] = 0;
   }
   docs.forEach((d) => {
     const date = new Date(d.created_at);
-    const key  = date.toLocaleDateString(i18n.language === "en" ? "en-US" : "fr-FR", { month: "short" });
+    const key = `${date.getFullYear()}-${date.getMonth()}`;
     if (key in monthMap) monthMap[key]++;
   });
-  const uploadsByMonth = Object.entries(monthMap).map(([mois, documents]) => ({ mois, documents }));
+  const uploadsByMonth = Object.entries(monthMap).map(([key, documents]) => {
+    const [year, month] = key.split("-").map(Number);
+    const date = new Date(year, month, 1);
+    return {
+      mois: date.toLocaleDateString(i18n.language === "en" ? "en-US" : "fr-FR", { month: "short" }),
+      documents,
+    };
+  });
 
   if (loading) return (
     <div className="flex items-center justify-center py-24 text-slate-400">

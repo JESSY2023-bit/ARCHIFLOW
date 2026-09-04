@@ -44,7 +44,7 @@ export const getCategories = () =>
   api.get("/documents/categories/");
 
 export const getActivityLogs = (limit = 10) =>
-  api.get("/documents/activity/", { params: { limit } });
+  api.get("/documents/activity/", { params: { limit, page_size: limit } });
 
 export const createCategory = (data)     => api.post("/documents/categories/", data);
 export const updateCategory = (id, data) => api.patch(`/documents/categories/${id}/`, data);

@@ -4,7 +4,8 @@ import { useNavigate } from "react-router-dom";
 import {
   MdSearch, MdFilterList, MdClose, MdAdd,
   MdPictureAsPdf, MdTableChart, MdDescription,
-  MdInsertDriveFile, MdDownload, MdDelete, MdVisibility,
+  MdInsertDriveFile, MdDownload, MdDelete, MdCalendarToday,
+  MdKeyboardArrowDown, MdChevronLeft, MdChevronRight, MdCheck,
 } from "react-icons/md";
 import { getDocuments, getCategories, deleteDocument } from "../api/documents";
 import { useAuthStore } from "../store/authStore";
@@ -23,6 +24,140 @@ const typeBadge = {
   Excel: "bg-emerald-50 text-emerald-700 border border-emerald-100",
   Word:  "bg-sky-50 text-sky-600 border border-sky-100",
 };
+
+function formatFilterDate(value, language) {
+  if (!value) return "";
+  return new Date(`${value}T00:00:00`).toLocaleDateString(
+    language === "en" ? "en-US" : "fr-FR",
+    { day: "2-digit", month: "2-digit", year: "numeric" },
+  );
+}
+
+function FilterSelect({ value, options, onChange, placeholder }) {
+  const [open, setOpen] = useState(false);
+  const selected = options.find((option) => option.value === value);
+
+  return (
+    <div className="relative min-w-40">
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        className={`w-full flex items-center justify-between gap-3 rounded-lg border px-3 py-2
+                   text-sm text-left transition ${open
+                     ? "border-teal-500 ring-2 ring-teal-100"
+                     : "border-slate-200 hover:border-slate-300"}`}
+      >
+        <span className={selected ? "text-slate-700" : "text-slate-400"}>
+          {selected?.label || placeholder}
+        </span>
+        <MdKeyboardArrowDown className={`text-lg text-slate-400 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full z-30 mt-2 w-full min-w-48 overflow-hidden
+                        rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
+          {options.map((option) => (
+            <button
+              type="button"
+              key={option.value}
+              onClick={() => { onChange(option.value); setOpen(false); }}
+              className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left
+                         text-sm text-slate-600 transition hover:bg-teal-50 hover:text-teal-700"
+            >
+              {option.label}
+              {option.value === value && <MdCheck className="text-teal-600" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DateFilter({ value, min, max, label, language, onChange }) {
+  const [open, setOpen] = useState(false);
+  const initialDate = value ? new Date(`${value}T00:00:00`) : new Date();
+  const [month, setMonth] = useState(new Date(initialDate.getFullYear(), initialDate.getMonth(), 1));
+  const firstDay = new Date(month.getFullYear(), month.getMonth(), 1);
+  const daysInMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
+  const leadingDays = (firstDay.getDay() + 6) % 7;
+  const monthLabel = month.toLocaleDateString(language === "en" ? "en-US" : "fr-FR", {
+    month: "long",
+    year: "numeric",
+  });
+  const weekdays = language === "en"
+    ? ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
+    : ["Lu", "Ma", "Me", "Je", "Ve", "Sa", "Di"];
+
+  const selectDay = (day) => {
+    const selected = new Date(month.getFullYear(), month.getMonth(), day);
+    const iso = [
+      selected.getFullYear(),
+      String(selected.getMonth() + 1).padStart(2, "0"),
+      String(selected.getDate()).padStart(2, "0"),
+    ].join("-");
+    if ((!min || iso >= min) && (!max || iso <= max)) {
+      onChange(iso);
+      setOpen(false);
+    }
+  };
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        className={`flex min-w-36 items-center gap-2 rounded-lg border px-3 py-2 text-sm transition
+                   ${open ? "border-teal-500 ring-2 ring-teal-100" : "border-slate-200 hover:border-slate-300"}`}
+      >
+        <MdCalendarToday className="text-base text-slate-400" />
+        <span className={value ? "text-slate-700" : "text-slate-400"}>
+          {value ? formatFilterDate(value, language) : label}
+        </span>
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full z-30 mt-2 w-72 rounded-xl border border-slate-200
+                        bg-white p-3 shadow-xl">
+          <div className="mb-3 flex items-center justify-between">
+            <button type="button" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}
+              className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-teal-700">
+              <MdChevronLeft className="text-xl" />
+            </button>
+            <span className="text-sm font-semibold capitalize text-slate-700">{monthLabel}</span>
+            <button type="button" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}
+              className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-teal-700">
+              <MdChevronRight className="text-xl" />
+            </button>
+          </div>
+          <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-semibold text-slate-400">
+            {weekdays.map((day) => <span key={day} className="py-1">{day}</span>)}
+            {Array.from({ length: leadingDays }).map((_, index) => <span key={`empty-${index}`} />)}
+            {Array.from({ length: daysInMonth }, (_, index) => {
+              const day = index + 1;
+              const selected = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+              const disabled = (min && selected < min) || (max && selected > max);
+              return (
+                <button type="button" key={day} disabled={disabled} onClick={() => selectDay(day)}
+                  className={`rounded-lg py-1.5 text-xs transition ${disabled
+                    ? "cursor-not-allowed text-slate-200"
+                    : selected === value
+                      ? "bg-teal-700 font-semibold text-white"
+                      : "text-slate-600 hover:bg-teal-50 hover:text-teal-700"}`}>
+                  {day}
+                </button>
+              );
+            })}
+          </div>
+          {value && (
+            <button type="button" onClick={() => { onChange(""); setOpen(false); }}
+              className="mt-3 w-full border-t border-slate-100 pt-2 text-xs font-medium text-slate-400 hover:text-rose-500">
+              Effacer
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function DeleteModal({ docName, onConfirm, onClose, t }) {
   return (
@@ -66,6 +201,8 @@ export default function ArchivesPage() {
   const [searchInput, setSearchInput] = useState(""); // valeur brute input
   const [filterType, setFilterType] = useState("Tous");
   const [filterCategory, setFilterCategory] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [categories, setCategories] = useState([]);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [page, setPage]             = useState(1);
@@ -96,6 +233,8 @@ export default function ArchivesPage() {
       if (search)                params.search = search;
       if (filterType !== "Tous") params.type   = filterType;
       if (filterCategory) params.category = filterCategory;
+      if (dateFrom) params.date_from = dateFrom;
+      if (dateTo) params.date_to = dateTo;
       const res = await getDocuments(params);
       const data = res.data;
       // Support pagination DRF (results) ou tableau simple
@@ -113,7 +252,7 @@ export default function ArchivesPage() {
     } finally {
       setLoading(false);
     }
-  }, [search, filterType, filterCategory, page, t]);
+  }, [search, filterType, filterCategory, dateFrom, dateTo, page, t]);
 
   useEffect(() => { fetchDocuments(); }, [fetchDocuments]);
   useEffect(() => {
@@ -141,6 +280,8 @@ export default function ArchivesPage() {
     setSearch("");
     setFilterType("Tous");
     setFilterCategory("");
+    setDateFrom("");
+    setDateTo("");
     setPage(1);
   };
 
@@ -183,35 +324,40 @@ export default function ArchivesPage() {
                          focus:outline-none focus:ring-2 focus:ring-teal-500"
             />
           </div>
-          <div className="flex items-center gap-2">
-            <MdFilterList className="text-slate-400 text-lg" />
-            <select
-              value={filterType}
-              onChange={(e) => { setFilterType(e.target.value); setPage(1); }}
-              className="border border-slate-200 rounded-lg px-3 py-2 text-sm
-                         focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
-            >
-              {types.map((type) => (
-                <option key={type} value={type}>
-                  {type === "Tous" ? t("archives.all_types") : type}
-                </option>
-              ))}
-            </select>
-          </div>
-          <select
+          <MdFilterList className="text-slate-400 text-lg" />
+          <FilterSelect
+            value={filterType}
+            onChange={(value) => { setFilterType(value); setPage(1); }}
+            placeholder={t("archives.all_types")}
+            options={types.map((type) => ({
+              value: type,
+              label: type === "Tous" ? t("archives.all_types") : type,
+            }))}
+          />
+          <FilterSelect
             value={filterCategory}
-            onChange={(e) => { setFilterCategory(e.target.value); setPage(1); }}
-            className="border border-slate-200 rounded-lg px-3 py-2 text-sm
-                       focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
-          >
-            <option value="">{t("archives.all_categories")}</option>
-            {categories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name}
-              </option>
-            ))}
-          </select>
-          {(searchInput || filterType !== "Tous" || filterCategory) && (
+            onChange={(value) => { setFilterCategory(value); setPage(1); }}
+            placeholder={t("archives.all_categories")}
+            options={[
+              { value: "", label: t("archives.all_categories") },
+              ...categories.map((category) => ({ value: String(category.id), label: category.name })),
+            ]}
+          />
+          <DateFilter
+            value={dateFrom}
+            max={dateTo || undefined}
+            label={t("archives.from")}
+            language={i18n.language}
+            onChange={(value) => { setDateFrom(value); setPage(1); }}
+          />
+          <DateFilter
+            value={dateTo}
+            min={dateFrom || undefined}
+            label={t("archives.to")}
+            language={i18n.language}
+            onChange={(value) => { setDateTo(value); setPage(1); }}
+          />
+          {(searchInput || filterType !== "Tous" || filterCategory || dateFrom || dateTo) && (
             <button
               onClick={resetFilters}
               className="flex items-center gap-1 text-sm text-slate-400
@@ -276,7 +422,7 @@ export default function ArchivesPage() {
             )}
 
             {!loading && !error && documents.map((doc) => (
-              <tr key={doc.id} className="hover:bg-slate-50 transition">
+              <tr key={doc.id} className="hover:bg-slate-50 transition cursor-pointer" onClick={() => navigate(`/archives/${doc.id}`)}>
 
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
@@ -327,32 +473,26 @@ export default function ArchivesPage() {
 
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => navigate(`/archives/${doc.id}`)}
-                      className="text-slate-400 hover:text-teal-600 transition"
-                      title={t("archives.view")}
-                    >
-                      <MdVisibility className="text-lg" />
-                    </button>
                     {doc.current_version?.file && (
-                      
-                     <a   href={resolveMediaUrl(doc.current_version.file)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-slate-400 hover:text-teal-600 transition"
-                        title={t("archives.download")}
-                      >
-                        <MdDownload className="text-lg" />
-                      </a>
+                     <a
+                       href={resolveMediaUrl(doc.current_version.file)}
+                       target="_blank"
+                       rel="noreferrer"
+                       onClick={(e) => e.stopPropagation()}
+                       className="text-slate-400 hover:text-teal-600 transition"
+                       title={t("archives.download")}
+                     >
+                       <MdDownload className="text-lg" />
+                     </a>
                     )}
                     {user?.role === "admin" && (
-                      <button
-                        onClick={() => setDeleteTarget({ id: doc.id, name: doc.name })}
-                        className="text-slate-400 hover:text-rose-500 transition"
-                        title={t("actions.delete")}
-                      >
-                        <MdDelete className="text-lg" />
-                      </button>
+                     <button
+                       onClick={(e) => { e.stopPropagation(); setDeleteTarget({ id: doc.id, name: doc.name }); }}
+                       className="text-slate-400 hover:text-rose-500 transition"
+                       title={t("actions.delete")}
+                     >
+                       <MdDelete className="text-lg" />
+                     </button>
                     )}
                   </div>
                 </td>
